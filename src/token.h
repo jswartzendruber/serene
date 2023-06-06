@@ -1,6 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
+#include <iostream>
 #include <string>
 #include <string_view>
 
@@ -28,7 +29,7 @@ enum class TokenType {
 class Token {
  public:
   Token(TokenType type, std::string_view src, int line);
-  ~Token(){};
+  ~Token();
 
   void debug_display();
 

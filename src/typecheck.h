@@ -6,7 +6,7 @@
 class TypeChecker {
  public:
   TypeChecker(std::vector<Function> ast);
-  ~TypeChecker() {};
+  ~TypeChecker();
 
   void check();
 };

@@ -1,11 +1,10 @@
 #include "token.h"
 
-#include <iostream>
-
 Token::Token(TokenType type, std::string_view src, int line) : m_src(src) {
   m_type = type;
   m_line = line;
 }
+Token::~Token() {}
 
 std::string tokenTypeToString(TokenType type) {
   const char *s;

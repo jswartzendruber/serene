@@ -1,11 +1,10 @@
 #include "lexer.h"
 
-#include <iostream>
-
 Lexer::Lexer(std::string_view src) : m_src(src), m_tokens() {
   m_line = 1;
   m_idx = 0;
 }
+Lexer::~Lexer() {}
 
 inline bool isNum(char c) { return c >= '0' && c <= '9'; }
 

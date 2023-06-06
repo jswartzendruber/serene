@@ -1,6 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <iostream>
 #include <string_view>
 #include <vector>
 
@@ -9,7 +10,7 @@
 class Lexer {
  public:
   Lexer(std::string_view fileSrc);
-  ~Lexer(){};
+  ~Lexer();
 
   std::vector<Token> lex();
 
