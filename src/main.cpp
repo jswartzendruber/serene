@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "token.h"
+#include "typecheck.h"
 
 std::string readFile(const std::string &filename) {
   std::ifstream file(filename);
@@ -48,8 +49,12 @@ int main(int argc, char **argv) {
     std::exit(1);
   }
 
+  TypeChecker tc(ast);
+  tc.check();
+
+  RSVisit visitor;
   for (Function f : ast) {
-    std::cout << "Name: " << f.m_name << ", Type: " << f.m_returnType << "\n";
+    f->accept(&visitor);
   }
 
   BaseStatement *baseStmt = ast[0].m_statements[0].m_statement;

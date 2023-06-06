@@ -1,6 +1,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include <cassert>
 #include <exception>
 #include <iostream>
 #include <optional>
@@ -9,132 +10,39 @@
 
 #include "token.h"
 
-class TypedValue {
+class Parser;
+class ParseException;
+
+class Function;
+class TypedValue;
+
+class Expression;
+class BaseExpression;
+class ValueExpression;
+class BinaryExpression;
+
+class Statement;
+class IfStatement;
+class BaseStatement;
+class ReturnStatement;
+
+class ASTVisitor;
+class RSVisit;
+
+std::string debugPrintExpr(Expression expr);
+
+class ASTVisitor {
  public:
-  TypedValue(std::string_view name, std::string_view type)
-      : m_name(name), m_type(type) {}
-  ~TypedValue() {}
-
-  std::string_view m_name;
-  std::string_view m_type;
-};
-
-class BaseExpression {};
-
-class Expression {
- public:
-  enum Type {
-    Value,
-    Op,
+  virtual void visitFunction(Function *function) {
+    walkFunction(this, function);
   };
-
-  Expression() {}
-  Expression(Type type, BaseExpression* expression)
-      : m_type(type), m_expression(expression) {}
-  ~Expression() {}
-
-  Type m_type;
-  BaseExpression* m_expression;
-};
-
-class ValueExpression : public BaseExpression {
- public:
-  ValueExpression(int value) : m_value(value) {}
-  ~ValueExpression() {}
-
-  int m_value;
-};
-
-class OpExpression : public BaseExpression {
- public:
-  enum Type {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Compare,
+  virtual void visitStatement(Statement *stmt) { walkStatement(this, stmt); };
+  virtual void visitIfStatement(IfStatement *stmt) {
+    walkIfStatement(this, stmt);
   };
-
-  OpExpression(Type type, Expression left, Expression right)
-      : m_type(type), m_left(left), m_right(right) {}
-  ~OpExpression() {}
-
-  static int infixBP(Type op) {
-    switch (op) {
-      case Compare:
-        return 10;
-
-      case Add:
-      case Sub:
-        return 20;
-
-      case Mul:
-      case Div:
-        return 30;
-
-      default:
-        return 0;
-    }
-  }
-
-  Type m_type;
-  Expression m_left;
-  Expression m_right;
-};
-
-class BaseStatement {};
-
-class Statement {
- public:
-  enum Type {
-    Return,
-    If,
+  virtual void visitReturnStatement(ReturnStatement *stmt) {
+    walkReturnStatement(this, stmt);
   };
-
-  Statement(Type type, BaseStatement* statement)
-      : m_type(type), m_statement(statement) {}
-  ~Statement() {}
-
-  Type m_type;
-  BaseStatement* m_statement;
-};
-
-class ReturnStatement : public BaseStatement {
- public:
-  ReturnStatement(Expression value) : m_value(value) {}
-  ~ReturnStatement() {}
-
-  Expression m_value;
-};
-
-class IfStatement : public BaseStatement {
- public:
-  IfStatement(Expression condition, std::vector<Statement> bodyIfTrue,
-              std::optional<std::vector<Statement>> bodyIfFalse)
-      : m_condition(condition),
-        m_bodyIfTrue(bodyIfTrue),
-        m_bodyIfFalse(bodyIfFalse) {}
-  ~IfStatement() {}
-
-  Expression m_condition;
-  std::vector<Statement> m_bodyIfTrue;
-  std::optional<std::vector<Statement>> m_bodyIfFalse;
-};
-
-class Function {
- public:
-  Function(std::string_view name, std::vector<TypedValue> args,
-           std::string_view returnType, std::vector<Statement> statements)
-      : m_name(name),
-        m_args(args),
-        m_returnType(returnType),
-        m_statements(statements) {}
-  ~Function() {}
-
-  std::string_view m_name;
-  std::vector<TypedValue> m_args;
-  std::string_view m_returnType;
-  std::vector<Statement> m_statements;
 };
 
 class Parser {
@@ -165,14 +73,171 @@ class Parser {
 
 class ParseException : public std::exception {
  public:
-  explicit ParseException(const std::string& msg) : m_msg(msg) {}
+  explicit ParseException(const std::string &msg) : m_msg(msg) {}
 
-  const char* what() const noexcept override { return m_msg.c_str(); }
+  const char *what() const noexcept override { return m_msg.c_str(); }
 
  private:
   std::string m_msg;
 };
 
-std::string debugPrintExpr(Expression expr);
+class Function {
+ public:
+  Function(std::string_view name, std::vector<TypedValue> args,
+           std::string_view returnType, std::vector<Statement> statements)
+      : m_name(name),
+        m_args(args),
+        m_returnType(returnType),
+        m_statements(statements) {}
+  ~Function() {}
+
+  std::string_view m_name;
+  std::vector<TypedValue> m_args;
+  std::string_view m_returnType;
+  std::vector<Statement> m_statements;
+};
+
+void walkFunction(ASTVisitor *visitor, Function *function) {
+  // visitor->visitBody(&function->m_statements);
+  // walkbody
+}
+
+class TypedValue {
+ public:
+  TypedValue(std::string_view name, std::string_view type)
+      : m_name(name), m_type(type) {}
+  ~TypedValue() {}
+
+  std::string_view m_name;
+  std::string_view m_type;
+};
+
+class BaseExpression {};
+
+class Expression {
+ public:
+  enum Type {
+    Value,
+    Op,
+  };
+
+  Expression() {}
+  Expression(Type type, BaseExpression *expression)
+      : m_type(type), m_expression(expression) {}
+  ~Expression() {}
+
+  Type m_type;
+  BaseExpression *m_expression;
+};
+
+class BinaryExpression : public BaseExpression {
+ public:
+  enum Type {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Compare,
+  };
+
+  BinaryExpression(Type type, Expression left, Expression right)
+      : m_type(type), m_left(left), m_right(right) {}
+  ~BinaryExpression() {}
+
+  static int infixBP(Type op) {
+    switch (op) {
+      case Compare:
+        return 10;
+
+      case Add:
+      case Sub:
+        return 20;
+
+      case Mul:
+      case Div:
+        return 30;
+
+      default:
+        return 0;
+    }
+  }
+
+  Type m_type;
+  Expression m_left;
+  Expression m_right;
+};
+
+class ValueExpression : public BaseExpression {
+ public:
+  ValueExpression(int value) : m_value(value) {}
+  ~ValueExpression() {}
+
+  int m_value;
+};
+
+class Statement {
+ public:
+  enum Type {
+    Return,
+    If,
+  };
+
+  Statement(Type type, BaseStatement *statement)
+      : m_type(type), m_statement(statement) {}
+  ~Statement() {}
+
+  Type m_type;
+  BaseStatement *m_statement;
+};
+
+void walkStatement(ASTVisitor *visitor, Statement *statement) {
+  Statement::Type type = statement->m_type;
+  if (type == Statement::Type::If) {
+    visitor->visitIfStatement(
+        static_cast<IfStatement *>(statement->m_statement));
+  } else if (type == Statement::Type::Return) {
+    visitor->visitReturnStatement(
+        static_cast<ReturnStatement *>(statement->m_statement));
+  } else {
+    assert(!"Unknown statement type");
+  }
+}
+
+class BaseStatement {};
+
+void walkIfStatement(ASTVisitor *visitor, IfStatement *stmt) {
+  // visit cond, if_true, if_false
+}
+
+class IfStatement : public BaseStatement {
+ public:
+  IfStatement(Expression condition, std::vector<Statement> bodyIfTrue,
+              std::optional<std::vector<Statement>> bodyIfFalse)
+      : m_condition(condition),
+        m_bodyIfTrue(bodyIfTrue),
+        m_bodyIfFalse(bodyIfFalse) {}
+  ~IfStatement() {}
+
+  Expression m_condition;
+  std::vector<Statement> m_bodyIfTrue;
+  std::optional<std::vector<Statement>> m_bodyIfFalse;
+};
+
+class ReturnStatement : public BaseStatement {
+ public:
+  ReturnStatement(Expression value) : m_value(value) {}
+  ~ReturnStatement() {}
+
+  void accept(ASTVisitor *visitor) { visitor->visit(this); }
+
+  Expression m_value;
+};
+
+// class RSVisit : public ASTVisitor {
+//  public:
+//   void visit(ReturnStatement *elem) override {
+//     std::cout << "return : " << debugPrintExpr(elem->m_value) << "\n";
+//   }
+// };
 
 #endif

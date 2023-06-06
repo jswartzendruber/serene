@@ -72,19 +72,20 @@ std::string debugPrintExpr(Expression expr) {
   std::string s;
 
   if (expr.m_type == Expression::Type::Op) {
-    OpExpression *opExpr = static_cast<OpExpression *>(expr.m_expression);
-    OpExpression::Type op = opExpr->m_type;
+    BinaryExpression *opExpr =
+        static_cast<BinaryExpression *>(expr.m_expression);
+    BinaryExpression::Type op = opExpr->m_type;
     std::string opstr;
 
-    if (op == OpExpression::Add) {
+    if (op == BinaryExpression::Add) {
       opstr = " + ";
-    } else if (op == OpExpression::Sub) {
+    } else if (op == BinaryExpression::Sub) {
       opstr = " - ";
-    } else if (op == OpExpression::Mul) {
+    } else if (op == BinaryExpression::Mul) {
       opstr = " * ";
-    } else if (op == OpExpression::Div) {
+    } else if (op == BinaryExpression::Div) {
       opstr = " / ";
-    } else if (op == OpExpression::Compare) {
+    } else if (op == BinaryExpression::Compare) {
       opstr = " == ";
     } else {
       opstr = " ? ";
@@ -186,23 +187,23 @@ Expression Parser::parseExpressionBP(int minBP) {
   }
 
   while (true) {
-    OpExpression::Type op;
+    BinaryExpression::Type op;
     Token curr = peek();
     if (curr.m_type == TokenType::Plus) {
-      op = OpExpression::Type::Add;
+      op = BinaryExpression::Type::Add;
     } else if (curr.m_type == TokenType::Minus) {
-      op = OpExpression::Type::Sub;
+      op = BinaryExpression::Type::Sub;
     } else if (curr.m_type == TokenType::Star) {
-      op = OpExpression::Type::Mul;
+      op = BinaryExpression::Type::Mul;
     } else if (curr.m_type == TokenType::Slash) {
-      op = OpExpression::Type::Div;
+      op = BinaryExpression::Type::Div;
     } else if (curr.m_type == TokenType::EqEq) {
-      op = OpExpression::Type::Compare;
+      op = BinaryExpression::Type::Compare;
     } else {
       break;
     }
 
-    int lbp = OpExpression::infixBP(op);
+    int lbp = BinaryExpression::infixBP(op);
 
     if (lbp > 0) {
       if (lbp < minBP) {
@@ -211,7 +212,8 @@ Expression Parser::parseExpressionBP(int minBP) {
 
       m_idx++;  // Skip over op
       Expression rhs = parseExpressionBP(lbp + 1);
-      lhs = Expression(Expression::Type::Op, new OpExpression(op, lhs, rhs));
+      lhs =
+          Expression(Expression::Type::Op, new BinaryExpression(op, lhs, rhs));
       continue;
     }
   }
