@@ -1,0 +1,7 @@
+fn main() -> u8 {
+    if 3 == 3 {
+        return 0;
+    } else {
+        return 1;
+    }
+}
