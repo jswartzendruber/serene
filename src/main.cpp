@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
 
   RSVisit visitor;
   for (Function f : ast) {
-    f->accept(&visitor);
+    visitor.visitFunction(&f);
   }
 
   BaseStatement *baseStmt = ast[0].m_statements[0].m_statement;

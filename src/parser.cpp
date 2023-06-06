@@ -1,6 +1,61 @@
 #include "parser.h"
 
+std::string debugPrintExpr(Expression expr) {
+  std::string s;
+
+  if (expr.m_type == Expression::Type::BinOp) {
+    BinaryExpression *opExpr =
+        static_cast<BinaryExpression *>(expr.m_expression);
+    BinaryExpression::Type op = opExpr->m_type;
+    std::string opstr;
+
+    if (op == BinaryExpression::Add) {
+      opstr = " + ";
+    } else if (op == BinaryExpression::Sub) {
+      opstr = " - ";
+    } else if (op == BinaryExpression::Mul) {
+      opstr = " * ";
+    } else if (op == BinaryExpression::Div) {
+      opstr = " / ";
+    } else if (op == BinaryExpression::Compare) {
+      opstr = " == ";
+    } else {
+      opstr = " ? ";
+    }
+
+    s += "( " + debugPrintExpr(opExpr->m_left) + opstr +
+         debugPrintExpr(opExpr->m_right) + " )";
+
+  } else if (expr.m_type == Expression::Type::Value) {
+    ValueExpression *vExpr = static_cast<ValueExpression *>(expr.m_expression);
+    s += std::to_string(vExpr->m_value);
+  }
+
+  return s;
+}
+
+void ASTVisitor::visitFunction(Function *function) {
+  walkFunction(this, function);
+};
+void ASTVisitor::visitExpression(Expression *expr) {
+  walkExpression(this, expr);
+};
+void ASTVisitor::visitValueExpression(ValueExpression *expr) {
+  walkValueExpression(this, expr);
+};
+void ASTVisitor::visitBinaryExpression(BinaryExpression *expr) {
+  walkBinaryExpression(this, expr);
+};
+void ASTVisitor::visitStatement(Statement *stmt) { walkStatement(this, stmt); };
+void ASTVisitor::visitIfStatement(IfStatement *stmt) {
+  walkIfStatement(this, stmt);
+};
+void ASTVisitor::visitReturnStatement(ReturnStatement *stmt) {
+  walkReturnStatement(this, stmt);
+};
+
 Parser::Parser(std::vector<Token> tokens) : m_tokens(tokens) { m_idx = 0; }
+Parser::~Parser() {}
 
 Token Parser::peek() {
   if (m_idx + 1 < m_tokens.size()) {
@@ -66,40 +121,6 @@ TypedValue Parser::parseFunctionArgument() {
     expect(TokenType::Comma);
   }
   return TypedValue(argName, argType);
-}
-
-std::string debugPrintExpr(Expression expr) {
-  std::string s;
-
-  if (expr.m_type == Expression::Type::Op) {
-    BinaryExpression *opExpr =
-        static_cast<BinaryExpression *>(expr.m_expression);
-    BinaryExpression::Type op = opExpr->m_type;
-    std::string opstr;
-
-    if (op == BinaryExpression::Add) {
-      opstr = " + ";
-    } else if (op == BinaryExpression::Sub) {
-      opstr = " - ";
-    } else if (op == BinaryExpression::Mul) {
-      opstr = " * ";
-    } else if (op == BinaryExpression::Div) {
-      opstr = " / ";
-    } else if (op == BinaryExpression::Compare) {
-      opstr = " == ";
-    } else {
-      opstr = " ? ";
-    }
-
-    s += "( " + debugPrintExpr(opExpr->m_left) + opstr +
-         debugPrintExpr(opExpr->m_right) + " )";
-
-  } else if (expr.m_type == Expression::Type::Value) {
-    ValueExpression *vExpr = static_cast<ValueExpression *>(expr.m_expression);
-    s += std::to_string(vExpr->m_value);
-  }
-
-  return s;
 }
 
 Statement Parser::parseStatement() {
@@ -212,11 +233,132 @@ Expression Parser::parseExpressionBP(int minBP) {
 
       m_idx++;  // Skip over op
       Expression rhs = parseExpressionBP(lbp + 1);
-      lhs =
-          Expression(Expression::Type::Op, new BinaryExpression(op, lhs, rhs));
+      lhs = Expression(Expression::Type::BinOp,
+                       new BinaryExpression(op, lhs, rhs));
       continue;
     }
   }
 
   return lhs;
+}
+
+TypedValue::TypedValue(std::string_view name, std::string_view type)
+    : m_name(name), m_type(type) {}
+TypedValue::~TypedValue() {}
+
+Expression::Expression() {}
+Expression::~Expression() {}
+Expression::Expression(Type type, BaseExpression *expression)
+    : m_type(type), m_expression(expression) {}
+
+BinaryExpression::BinaryExpression(Type type, Expression left, Expression right)
+    : m_type(type), m_left(left), m_right(right) {}
+BinaryExpression::~BinaryExpression() {}
+
+int BinaryExpression::infixBP(Type op) {
+  switch (op) {
+    case Compare:
+      return 10;
+
+    case Add:
+    case Sub:
+      return 20;
+
+    case Mul:
+    case Div:
+      return 30;
+
+    default:
+      return 0;
+  }
+}
+
+ValueExpression::ValueExpression(int value) : m_value(value) {}
+ValueExpression::~ValueExpression() {}
+
+Statement::Statement(Type type, BaseStatement *statement)
+    : m_type(type), m_statement(statement) {}
+Statement::~Statement() {}
+
+IfStatement::IfStatement(Expression condition,
+                         std::vector<Statement> bodyIfTrue,
+                         std::optional<std::vector<Statement>> bodyIfFalse)
+    : m_condition(condition),
+      m_bodyIfTrue(bodyIfTrue),
+      m_bodyIfFalse(bodyIfFalse) {}
+IfStatement::~IfStatement() {}
+
+ReturnStatement::ReturnStatement(Expression value) : m_value(value) {}
+ReturnStatement::~ReturnStatement() {}
+
+Function::Function(std::string_view name, std::vector<TypedValue> args,
+                   std::string_view returnType,
+                   std::vector<Statement> statements)
+    : m_name(name),
+      m_args(args),
+      m_returnType(returnType),
+      m_statements(statements) {}
+Function::~Function() {}
+
+void RSVisit::visitReturnStatement(ReturnStatement *elem) {
+  std::cout << "return : " << debugPrintExpr(elem->m_value) << "\n";
+}
+
+void walkExpression(ASTVisitor *visitor, Expression *expr) {
+  Expression::Type type = expr->m_type;
+  if (type == Expression::Type::BinOp) {
+    visitor->visitBinaryExpression(
+        static_cast<BinaryExpression *>(expr->m_expression));
+  } else if (type == Expression::Type::Value) {
+    visitor->visitValueExpression(
+        static_cast<ValueExpression *>(expr->m_expression));
+  } else {
+    assert(!"Unknown expression type");
+  }
+}
+
+void walkValueExpression(ASTVisitor *visitor, ValueExpression *expr) {
+  // what do here
+}
+
+void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr) {
+  visitor->visitExpression(&expr->m_left);
+  visitor->visitExpression(&expr->m_right);
+}
+
+void walkIfStatement(ASTVisitor *visitor, IfStatement *stmt) {
+  visitor->visitExpression(&stmt->m_condition);
+
+  for (Statement s : stmt->m_bodyIfTrue) {
+    visitor->visitStatement(&s);
+  }
+
+  if (stmt->m_bodyIfFalse.has_value()) {
+    for (Statement s : stmt->m_bodyIfFalse.value()) {
+      visitor->visitStatement(&s);
+    }
+  }
+}
+
+void walkReturnStatement(ASTVisitor *visitor, ReturnStatement *stmt) {
+  visitor->visitExpression(&stmt->m_value);
+}
+
+void walkStatement(ASTVisitor *visitor, Statement *statement) {
+  Statement::Type type = statement->m_type;
+  if (type == Statement::Type::If) {
+    visitor->visitIfStatement(
+        static_cast<IfStatement *>(statement->m_statement));
+  } else if (type == Statement::Type::Return) {
+    visitor->visitReturnStatement(
+        static_cast<ReturnStatement *>(statement->m_statement));
+  } else {
+    assert(!"Unknown statement type");
+  }
+}
+
+void walkFunction(ASTVisitor *visitor, Function *function) {
+  for (Statement s : function->m_statements) {
+    visitor->visitStatement(&s);
+  }
 }
