@@ -28,7 +28,7 @@ std::string debugPrintExpr(Expression expr) {
 
   } else if (expr.m_type == Expression::Type::Value) {
     ValueExpression *vExpr = static_cast<ValueExpression *>(expr.m_expression);
-    s += vExpr->m_value;
+    s += vExpr->valueString();
   }
 
   return s;
@@ -196,7 +196,19 @@ Expression Parser::parseExpressionBP(int minBP) {
 
   if (at(TokenType::Integer)) {
     Token t = expect(TokenType::Integer);
-    lhs = Expression(Expression::Type::Value, new ValueExpression(t.m_src));
+    long val = std::stol(std::string(t.m_src));
+    lhs = Expression(Expression::Type::Value,
+                     new ValueExpression(val, ValueExpression::Type::Long));
+  } else if (at(TokenType::Float)) {
+    Token t = expect(TokenType::Float);
+    double val = std::stod(std::string(t.m_src));
+    lhs = Expression(Expression::Type::Value,
+                     new ValueExpression(val, ValueExpression::Type::Double));
+  } else if (at(TokenType::String)) {
+    Token t = expect(TokenType::String);
+    lhs = Expression(
+        Expression::Type::Value,
+        new ValueExpression(t.m_src, ValueExpression::Type::StringView));
   } else if (at(TokenType::LParen)) {
     expect(TokenType::LParen);
     lhs = parseExpression();
@@ -272,8 +284,20 @@ int BinaryExpression::infixBP(Type op) {
   }
 }
 
-ValueExpression::ValueExpression(std::string_view value) : m_value(value) {}
+ValueExpression::ValueExpression(VExpr value, Type type)
+    : m_value(value), m_type(type) {}
 ValueExpression::~ValueExpression() {}
+std::string_view ValueExpression::valueString() {
+  if (m_type == Type::Long) {
+    return std::to_string(std::get<long>(m_value));
+  } else if (m_type == Type::Double) {
+    return std::to_string(std::get<double>(m_value));
+  } else if (m_type == Type::StringView) {
+    return std::get<std::string_view>(m_value);
+  } else {
+    assert(!"Unknown type in value expression");
+  }
+}
 
 Statement::Statement(Type type, BaseStatement *statement)
     : m_type(type), m_statement(statement) {}

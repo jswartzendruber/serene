@@ -6,6 +6,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "token.h"
@@ -27,7 +28,9 @@ class BaseStatement;
 class ReturnStatement;
 
 class ASTVisitor;
-class TypeCheckVis;
+class TypeCheckVisitor;
+
+using VExpr = std::variant<long, double, std::string_view>;
 
 std::string debugPrintExpr(Expression expr);
 
@@ -133,10 +136,19 @@ class BinaryExpression : public BaseExpression {
 
 class ValueExpression : public BaseExpression {
  public:
-  ValueExpression(std::string_view value);
+  enum Type {
+    Long,
+    Double,
+    StringView,
+  };
+
+  ValueExpression(VExpr value, Type type);
   ~ValueExpression();
 
-  std::string_view m_value;
+  std::string_view valueString();
+
+  Type m_type;
+  VExpr m_value;
 };
 
 class BaseStatement {};

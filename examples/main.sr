@@ -1,5 +1,5 @@
 fn main() -> u8 {
-    if 3 == 3 {
+    if 3.0 == "shh" == 3 {
         return 0;
     } else {
         return 1;

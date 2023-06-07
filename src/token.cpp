@@ -26,6 +26,7 @@ std::string tokenTypeToString(TokenType type) {
     PROCESS_VAL(TokenType::Arrow);
     PROCESS_VAL(TokenType::Colon);
     PROCESS_VAL(TokenType::Comma);
+    PROCESS_VAL(TokenType::Float);
     PROCESS_VAL(TokenType::Plus);
     PROCESS_VAL(TokenType::Star);
     PROCESS_VAL(TokenType::EqEq);

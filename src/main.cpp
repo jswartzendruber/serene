@@ -50,7 +50,12 @@ int main(int argc, char **argv) {
   }
 
   TypeChecker tc(ast);
-  tc.check();
+  try {
+    tc.check();
+  } catch (TypeCheckException &e) {
+    std::cout << e.what() << "\n";
+    std::exit(1);
+  }
 
   BaseStatement *baseStmt = ast[0].m_statements[0].m_statement;
   if (ast[0].m_statements[0].m_type == Statement::Type::If) {

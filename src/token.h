@@ -19,6 +19,7 @@ enum class TokenType {
   Arrow,
   Colon,
   Comma,
+  Float,
   Plus,
   Star,
   EqEq,

@@ -15,26 +15,37 @@ inline bool isAlpha(char c) {
 inline bool isAlphanumeric(char c) { return isAlpha(c) || isNum(c); }
 
 std::vector<Token> Lexer::lex() {
+  int tempIdx;
+  int startIdx;
   while (m_idx < m_src.size()) {
     char c = m_src[m_idx];
 
     if (isAlpha(c)) {
-      int startIdx = m_idx;
-      int tempIdx = m_idx;
+      startIdx = m_idx;
+      tempIdx = m_idx;
       while (tempIdx < m_src.size() && isAlphanumeric(m_src[tempIdx])) {
         tempIdx++;
       }
 
       addToken(TokenType::Identifier, tempIdx - startIdx);
     } else if (isNum(c)) {
-      int startIdx = m_idx;
-      int tempIdx = m_idx;
-      while (tempIdx < m_src.size() && isNum(m_src[tempIdx])) {
+      startIdx = m_idx;
+      tempIdx = m_idx;
+      bool floating = false;
+      while (tempIdx < m_src.size()) {
+        if (m_src[tempIdx] == '.') {
+          floating = true;
+        } else if (!isNum(m_src[tempIdx])) {
+          break;
+        }
         tempIdx++;
       }
 
-      // TODO: floats
-      addToken(TokenType::Integer, tempIdx - startIdx);
+      if (floating) {
+        addToken(TokenType::Float, tempIdx - startIdx);
+      } else {
+        addToken(TokenType::Integer, tempIdx - startIdx);
+      }
     } else {
       switch (c) {
         case '\n':
@@ -99,6 +110,18 @@ std::vector<Token> Lexer::lex() {
           } else {
             addToken(TokenType::Eq, 1);
           }
+          break;
+
+        case '"':
+          m_idx++;  // Skip opening quote
+          startIdx = m_idx;
+          tempIdx = m_idx;
+          while (tempIdx < m_src.size() && m_src[tempIdx] != '"') {
+            tempIdx++;
+          }
+
+          addToken(TokenType::String, tempIdx - startIdx);
+          m_idx++;  // Skip closing quote
           break;
 
         default:
