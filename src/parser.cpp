@@ -300,10 +300,6 @@ Function::Function(std::string_view name, std::vector<TypedValue> args,
       m_statements(statements) {}
 Function::~Function() {}
 
-void RSVisit::visitReturnStatement(ReturnStatement *elem) {
-  std::cout << "return : " << debugPrintExpr(elem->m_value) << "\n";
-}
-
 void walkExpression(ASTVisitor *visitor, Expression *expr) {
   Expression::Type type = expr->m_type;
   if (type == Expression::Type::BinOp) {

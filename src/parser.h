@@ -27,7 +27,7 @@ class BaseStatement;
 class ReturnStatement;
 
 class ASTVisitor;
-class RSVisit;
+class TypeCheckVis;
 
 std::string debugPrintExpr(Expression expr);
 
@@ -184,11 +184,6 @@ class Function {
   std::vector<TypedValue> m_args;
   std::string_view m_returnType;
   std::vector<Statement> m_statements;
-};
-
-class RSVisit : public ASTVisitor {
- public:
-  void visitReturnStatement(ReturnStatement *elem);
 };
 
 #endif

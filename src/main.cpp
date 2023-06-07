@@ -52,11 +52,6 @@ int main(int argc, char **argv) {
   TypeChecker tc(ast);
   tc.check();
 
-  RSVisit visitor;
-  for (Function f : ast) {
-    visitor.visitFunction(&f);
-  }
-
   BaseStatement *baseStmt = ast[0].m_statements[0].m_statement;
   if (ast[0].m_statements[0].m_type == Statement::Type::If) {
     IfStatement *stmt = static_cast<IfStatement *>(baseStmt);
