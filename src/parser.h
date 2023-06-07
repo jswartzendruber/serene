@@ -133,10 +133,10 @@ class BinaryExpression : public BaseExpression {
 
 class ValueExpression : public BaseExpression {
  public:
-  ValueExpression(int value);
+  ValueExpression(std::string_view value);
   ~ValueExpression();
 
-  int m_value;
+  std::string_view m_value;
 };
 
 class BaseStatement {};

@@ -28,7 +28,7 @@ std::string debugPrintExpr(Expression expr) {
 
   } else if (expr.m_type == Expression::Type::Value) {
     ValueExpression *vExpr = static_cast<ValueExpression *>(expr.m_expression);
-    s += std::to_string(vExpr->m_value);
+    s += vExpr->m_value;
   }
 
   return s;
@@ -196,8 +196,7 @@ Expression Parser::parseExpressionBP(int minBP) {
 
   if (at(TokenType::Integer)) {
     Token t = expect(TokenType::Integer);
-    int value = std::stoi(std::string(t.m_src));
-    lhs = Expression(Expression::Type::Value, new ValueExpression(value));
+    lhs = Expression(Expression::Type::Value, new ValueExpression(t.m_src));
   } else if (at(TokenType::LParen)) {
     expect(TokenType::LParen);
     lhs = parseExpression();
@@ -273,7 +272,7 @@ int BinaryExpression::infixBP(Type op) {
   }
 }
 
-ValueExpression::ValueExpression(int value) : m_value(value) {}
+ValueExpression::ValueExpression(std::string_view value) : m_value(value) {}
 ValueExpression::~ValueExpression() {}
 
 Statement::Statement(Type type, BaseStatement *statement)
