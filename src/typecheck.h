@@ -6,21 +6,22 @@
 class TypeCheckVisitor : public ASTVisitor {
  public:
   void visitReturnStatement(ReturnStatement *elem);
-  void visitValueExpression(ValueExpression *expr);
-  void visitBinaryExpression(BinaryExpression *expr);
 
-  std::string_view m_currFnType;
+  Function *m_currFn;
 };
 
 class TypeChecker {
  public:
-  TypeChecker(std::vector<Function> ast);
+  TypeChecker(
+      std::vector<Function> ast,
+      std::unordered_map<std::string_view, std::string_view> symbolTable);
   ~TypeChecker();
 
   void check();
 
  private:
   std::vector<Function> m_ast;
+  std::unordered_map<std::string_view, std::string_view> m_symbolTable;
 };
 
 class TypeCheckException : public std::exception {

@@ -80,6 +80,7 @@
         "valarray": "cpp",
         "variant": "cpp",
         "*.inc": "cpp",
-        "*.def": "cpp"
+        "*.def": "cpp",
+        "hash_map": "cpp"
     }
 }

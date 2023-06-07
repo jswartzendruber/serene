@@ -36,10 +36,6 @@ int main(int argc, char **argv) {
   Lexer lexer(fileSrc);
   std::vector<Token> tokens = lexer.lex();
 
-  // for (Token t : tokens) {
-  //   t.debug_display();
-  // }
-
   Parser parser(tokens);
   std::vector<Function> ast;
   try {
@@ -49,7 +45,7 @@ int main(int argc, char **argv) {
     std::exit(1);
   }
 
-  TypeChecker tc(ast);
+  TypeChecker tc(ast, parser.m_symbolTable);
   try {
     tc.check();
   } catch (TypeCheckException &e) {

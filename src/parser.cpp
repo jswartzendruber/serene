@@ -34,6 +34,26 @@ std::string debugPrintExpr(Expression expr) {
   return s;
 }
 
+std::string_view primitiveTypeToString(PrimitiveType type) {
+  const char *s;
+#define PROCESS_VAL(p) \
+  case (p):            \
+    s = #p;            \
+    break;
+  switch (type) {
+    PROCESS_VAL(PrimitiveType::i64);
+    PROCESS_VAL(PrimitiveType::f64);
+    PROCESS_VAL(PrimitiveType::String);
+
+    default:
+      s = "PrimitiveType::UNKNOWN";
+      break;
+  }
+#undef PROCESS_VAL
+
+  return s + 15;  // hacky way to remove PrimitiveType::
+}
+
 void ASTVisitor::visitFunction(Function *function) {
   walkFunction(this, function);
 };
@@ -178,6 +198,7 @@ Function Parser::parseFunction() {
   // TODO: optional return type
   expect(TokenType::Arrow);
   std::string_view returnType = expectIdentifier();
+  m_symbolTable[functionName] = returnType;
 
   expect(TokenType::LCurly);
   std::vector<Statement> statements;
@@ -198,17 +219,16 @@ Expression Parser::parseExpressionBP(int minBP) {
     Token t = expect(TokenType::Integer);
     long val = std::stol(std::string(t.m_src));
     lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(val, PrimitiveType::I64));
+                     new ValueExpression(val, PrimitiveType::i64));
   } else if (at(TokenType::Float)) {
     Token t = expect(TokenType::Float);
     double val = std::stod(std::string(t.m_src));
     lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(val, PrimitiveType::F64));
+                     new ValueExpression(val, PrimitiveType::f64));
   } else if (at(TokenType::String)) {
     Token t = expect(TokenType::String);
-    lhs = Expression(
-        Expression::Type::Value,
-        new ValueExpression(t.m_src, PrimitiveType::String));
+    lhs = Expression(Expression::Type::Value,
+                     new ValueExpression(t.m_src, PrimitiveType::String));
   } else if (at(TokenType::LParen)) {
     expect(TokenType::LParen);
     lhs = parseExpression();
@@ -287,13 +307,13 @@ int BinaryExpression::infixBP(Type op) {
 ValueExpression::ValueExpression(VExpr value, PrimitiveType type)
     : m_value(value), m_type(type) {}
 ValueExpression::~ValueExpression() {}
-std::string_view ValueExpression::valueString() {
-  if (m_type == PrimitiveType::I64) {
+std::string ValueExpression::valueString() {
+  if (m_type == PrimitiveType::i64) {
     return std::to_string(std::get<long>(m_value));
-  } else if (m_type == PrimitiveType::F64) {
+  } else if (m_type == PrimitiveType::f64) {
     return std::to_string(std::get<double>(m_value));
   } else if (m_type == PrimitiveType::String) {
-    return std::get<std::string_view>(m_value);
+    return '"' + std::string(std::get<std::string_view>(m_value)) + '"';
   } else {
     assert(!"Unknown type in value expression");
   }

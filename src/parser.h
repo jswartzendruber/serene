@@ -6,6 +6,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -31,13 +32,14 @@ class ASTVisitor;
 class TypeCheckVisitor;
 
 enum class PrimitiveType {
-  I64,
-  F64,
+  i64,
+  f64,
   String,
 };
 
 using VExpr = std::variant<long, double, std::string_view>;
 
+std::string_view primitiveTypeToString(PrimitiveType type);
 std::string debugPrintExpr(Expression expr);
 
 void walkFunction(ASTVisitor *visitor, Function *function);
@@ -65,6 +67,8 @@ class Parser {
   ~Parser();
 
   std::vector<Function> parse();
+
+  std::unordered_map<std::string_view, std::string_view> m_symbolTable;
 
  private:
   std::vector<Token> m_tokens;
@@ -145,7 +149,7 @@ class ValueExpression : public BaseExpression {
   ValueExpression(VExpr value, PrimitiveType type);
   ~ValueExpression();
 
-  std::string_view valueString();
+  std::string valueString();
 
   PrimitiveType m_type;
   VExpr m_value;
