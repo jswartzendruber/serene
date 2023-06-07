@@ -5,11 +5,12 @@ void TypeCheckVisitor::visitReturnStatement(ReturnStatement *elem) {
 }
 
 void TypeCheckVisitor::visitValueExpression(ValueExpression *expr) {
-    
+    // std:: cout << m_currFnType << "\n";
+    // if (expr->m_type != m_currFnType)
 }
 
 void TypeCheckVisitor::visitBinaryExpression(BinaryExpression *expr) {
-
+    // std::cout << "binxpr\n";
 }
 
 TypeChecker::TypeChecker(std::vector<Function> ast) : m_ast(ast) {}

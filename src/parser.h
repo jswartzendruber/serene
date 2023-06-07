@@ -30,6 +30,12 @@ class ReturnStatement;
 class ASTVisitor;
 class TypeCheckVisitor;
 
+enum class PrimitiveType {
+  I64,
+  F64,
+  String,
+};
+
 using VExpr = std::variant<long, double, std::string_view>;
 
 std::string debugPrintExpr(Expression expr);
@@ -136,18 +142,12 @@ class BinaryExpression : public BaseExpression {
 
 class ValueExpression : public BaseExpression {
  public:
-  enum Type {
-    Long,
-    Double,
-    StringView,
-  };
-
-  ValueExpression(VExpr value, Type type);
+  ValueExpression(VExpr value, PrimitiveType type);
   ~ValueExpression();
 
   std::string_view valueString();
 
-  Type m_type;
+  PrimitiveType m_type;
   VExpr m_value;
 };
 

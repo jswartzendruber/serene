@@ -198,17 +198,17 @@ Expression Parser::parseExpressionBP(int minBP) {
     Token t = expect(TokenType::Integer);
     long val = std::stol(std::string(t.m_src));
     lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(val, ValueExpression::Type::Long));
+                     new ValueExpression(val, PrimitiveType::I64));
   } else if (at(TokenType::Float)) {
     Token t = expect(TokenType::Float);
     double val = std::stod(std::string(t.m_src));
     lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(val, ValueExpression::Type::Double));
+                     new ValueExpression(val, PrimitiveType::F64));
   } else if (at(TokenType::String)) {
     Token t = expect(TokenType::String);
     lhs = Expression(
         Expression::Type::Value,
-        new ValueExpression(t.m_src, ValueExpression::Type::StringView));
+        new ValueExpression(t.m_src, PrimitiveType::String));
   } else if (at(TokenType::LParen)) {
     expect(TokenType::LParen);
     lhs = parseExpression();
@@ -284,15 +284,15 @@ int BinaryExpression::infixBP(Type op) {
   }
 }
 
-ValueExpression::ValueExpression(VExpr value, Type type)
+ValueExpression::ValueExpression(VExpr value, PrimitiveType type)
     : m_value(value), m_type(type) {}
 ValueExpression::~ValueExpression() {}
 std::string_view ValueExpression::valueString() {
-  if (m_type == Type::Long) {
+  if (m_type == PrimitiveType::I64) {
     return std::to_string(std::get<long>(m_value));
-  } else if (m_type == Type::Double) {
+  } else if (m_type == PrimitiveType::F64) {
     return std::to_string(std::get<double>(m_value));
-  } else if (m_type == Type::StringView) {
+  } else if (m_type == PrimitiveType::String) {
     return std::get<std::string_view>(m_value);
   } else {
     assert(!"Unknown type in value expression");
