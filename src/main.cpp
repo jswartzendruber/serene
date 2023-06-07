@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
   BaseStatement *baseStmt = ast[0].m_statements[0].m_statement;
   if (ast[0].m_statements[0].m_type == Statement::Type::If) {
     IfStatement *stmt = static_cast<IfStatement *>(baseStmt);
-    std::cout << debugPrintExpr<int>(stmt->m_condition) << "\n";
+    std::cout << debugPrintExpr(stmt->m_condition) << "\n";
   }
 
   return 0;
