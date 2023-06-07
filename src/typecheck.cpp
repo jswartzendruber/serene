@@ -1,7 +1,7 @@
 #include "typecheck.h"
 
 void TypeCheckVis::visitReturnStatement(ReturnStatement *elem) {
-  std::cout << "return : " << debugPrintExpr(elem->m_value) << "\n";
+  std::cout << "return : " << debugPrintExpr<int>(elem->m_value) << "\n";
 }
 
 TypeChecker::TypeChecker(std::vector<Function> ast) : m_ast(ast) {}

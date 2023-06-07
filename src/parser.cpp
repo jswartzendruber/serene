@@ -1,50 +1,10 @@
 #include "parser.h"
 
-std::string debugPrintExpr(Expression expr) {
-  std::string s;
-
-  if (expr.m_type == Expression::Type::BinOp) {
-    BinaryExpression *opExpr =
-        static_cast<BinaryExpression *>(expr.m_expression);
-    BinaryExpression::Type op = opExpr->m_type;
-    std::string opstr;
-
-    if (op == BinaryExpression::Add) {
-      opstr = " + ";
-    } else if (op == BinaryExpression::Sub) {
-      opstr = " - ";
-    } else if (op == BinaryExpression::Mul) {
-      opstr = " * ";
-    } else if (op == BinaryExpression::Div) {
-      opstr = " / ";
-    } else if (op == BinaryExpression::Compare) {
-      opstr = " == ";
-    } else {
-      opstr = " ? ";
-    }
-
-    s += "( " + debugPrintExpr(opExpr->m_left) + opstr +
-         debugPrintExpr(opExpr->m_right) + " )";
-
-  } else if (expr.m_type == Expression::Type::Value) {
-    ValueExpression *vExpr = static_cast<ValueExpression *>(expr.m_expression);
-    s += std::to_string(vExpr->m_value);
-  }
-
-  return s;
-}
-
 void ASTVisitor::visitFunction(Function *function) {
   walkFunction(this, function);
 };
 void ASTVisitor::visitExpression(Expression *expr) {
   walkExpression(this, expr);
-};
-void ASTVisitor::visitValueExpression(ValueExpression *expr) {
-  walkValueExpression(this, expr);
-};
-void ASTVisitor::visitBinaryExpression(BinaryExpression *expr) {
-  walkBinaryExpression(this, expr);
 };
 void ASTVisitor::visitStatement(Statement *stmt) { walkStatement(this, stmt); };
 void ASTVisitor::visitIfStatement(IfStatement *stmt) {
@@ -197,7 +157,7 @@ Expression Parser::parseExpressionBP(int minBP) {
   if (at(TokenType::Integer)) {
     Token t = expect(TokenType::Integer);
     int value = std::stoi(std::string(t.m_src));
-    lhs = Expression(Expression::Type::Value, new ValueExpression(value));
+    lhs = Expression(Expression::Type::Value, new ValueExpression<int>(value));
   } else if (at(TokenType::LParen)) {
     expect(TokenType::LParen);
     lhs = parseExpression();
@@ -273,8 +233,10 @@ int BinaryExpression::infixBP(Type op) {
   }
 }
 
-ValueExpression::ValueExpression(int value) : m_value(value) {}
-ValueExpression::~ValueExpression() {}
+template <typename T>
+ValueExpression<T>::ValueExpression(T value) : m_value(value) {}
+template <typename T>
+ValueExpression<T>::~ValueExpression() {}
 
 Statement::Statement(Type type, BaseStatement *statement)
     : m_type(type), m_statement(statement) {}
@@ -301,25 +263,7 @@ Function::Function(std::string_view name, std::vector<TypedValue> args,
 Function::~Function() {}
 
 void walkExpression(ASTVisitor *visitor, Expression *expr) {
-  Expression::Type type = expr->m_type;
-  if (type == Expression::Type::BinOp) {
-    visitor->visitBinaryExpression(
-        static_cast<BinaryExpression *>(expr->m_expression));
-  } else if (type == Expression::Type::Value) {
-    visitor->visitValueExpression(
-        static_cast<ValueExpression *>(expr->m_expression));
-  } else {
-    assert(!"Unknown expression type");
-  }
-}
-
-void walkValueExpression(ASTVisitor *visitor, ValueExpression *expr) {
-  // what do here
-}
-
-void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr) {
-  visitor->visitExpression(&expr->m_left);
-  visitor->visitExpression(&expr->m_right);
+  // ??
 }
 
 void walkIfStatement(ASTVisitor *visitor, IfStatement *stmt) {
