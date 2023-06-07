@@ -19,7 +19,10 @@ class TypedValue;
 
 class Expression;
 class BaseExpression;
+
+template <typename T>
 class ValueExpression;
+
 class BinaryExpression;
 
 class Statement;
@@ -38,12 +41,11 @@ enum class PrimitiveType {
 
 using VExpr = std::variant<long, double, std::string_view>;
 
+template <typename T>
 std::string debugPrintExpr(Expression expr);
 
 void walkFunction(ASTVisitor *visitor, Function *function);
 void walkExpression(ASTVisitor *visitor, Expression *expr);
-void walkValueExpression(ASTVisitor *visitor, ValueExpression *expr);
-void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr);
 void walkStatement(ASTVisitor *visitor, Statement *stmt);
 void walkIfStatement(ASTVisitor *visitor, IfStatement *stmt);
 void walkReturnStatement(ASTVisitor *visitor, ReturnStatement *stmt);
@@ -52,8 +54,6 @@ class ASTVisitor {
  public:
   virtual void visitFunction(Function *function);
   virtual void visitExpression(Expression *expr);
-  virtual void visitValueExpression(ValueExpression *expr);
-  virtual void visitBinaryExpression(BinaryExpression *expr);
   virtual void visitStatement(Statement *stmt);
   virtual void visitIfStatement(IfStatement *stmt);
   virtual void visitReturnStatement(ReturnStatement *stmt);
@@ -140,6 +140,7 @@ class BinaryExpression : public BaseExpression {
   Expression m_right;
 };
 
+template <typename T>
 class ValueExpression : public BaseExpression {
  public:
   ValueExpression(VExpr value, PrimitiveType type);
@@ -197,5 +198,41 @@ class Function {
   std::string_view m_returnType;
   std::vector<Statement> m_statements;
 };
+
+template <typename T>
+std::string debugPrintExpr(Expression expr) {
+  std::string s;
+
+  if (expr.m_type == Expression::Type::BinOp) {
+    BinaryExpression *opExpr =
+        static_cast<BinaryExpression *>(expr.m_expression);
+    BinaryExpression::Type op = opExpr->m_type;
+    std::string opstr;
+
+    if (op == BinaryExpression::Add) {
+      opstr = " + ";
+    } else if (op == BinaryExpression::Sub) {
+      opstr = " - ";
+    } else if (op == BinaryExpression::Mul) {
+      opstr = " * ";
+    } else if (op == BinaryExpression::Div) {
+      opstr = " / ";
+    } else if (op == BinaryExpression::Compare) {
+      opstr = " == ";
+    } else {
+      opstr = " ? ";
+    }
+
+    s += "( " + debugPrintExpr<T>(opExpr->m_left) + opstr +
+         debugPrintExpr<T>(opExpr->m_right) + " )";
+
+  } else if (expr.m_type == Expression::Type::Value) {
+    ValueExpression<T> *vExpr =
+        static_cast<ValueExpression<T> *>(expr.m_expression);
+    s += std::to_string(vExpr->m_value);
+  }
+
+  return s;
+}
 
 #endif

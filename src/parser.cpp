@@ -40,12 +40,6 @@ void ASTVisitor::visitFunction(Function *function) {
 void ASTVisitor::visitExpression(Expression *expr) {
   walkExpression(this, expr);
 };
-void ASTVisitor::visitValueExpression(ValueExpression *expr) {
-  walkValueExpression(this, expr);
-};
-void ASTVisitor::visitBinaryExpression(BinaryExpression *expr) {
-  walkBinaryExpression(this, expr);
-};
 void ASTVisitor::visitStatement(Statement *stmt) { walkStatement(this, stmt); };
 void ASTVisitor::visitIfStatement(IfStatement *stmt) {
   walkIfStatement(this, stmt);
@@ -324,25 +318,7 @@ Function::Function(std::string_view name, std::vector<TypedValue> args,
 Function::~Function() {}
 
 void walkExpression(ASTVisitor *visitor, Expression *expr) {
-  Expression::Type type = expr->m_type;
-  if (type == Expression::Type::BinOp) {
-    visitor->visitBinaryExpression(
-        static_cast<BinaryExpression *>(expr->m_expression));
-  } else if (type == Expression::Type::Value) {
-    visitor->visitValueExpression(
-        static_cast<ValueExpression *>(expr->m_expression));
-  } else {
-    assert(!"Unknown expression type");
-  }
-}
-
-void walkValueExpression(ASTVisitor *visitor, ValueExpression *expr) {
-  // what do here
-}
-
-void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr) {
-  visitor->visitExpression(&expr->m_left);
-  visitor->visitExpression(&expr->m_right);
+  // ??
 }
 
 void walkIfStatement(ASTVisitor *visitor, IfStatement *stmt) {
