@@ -1,5 +1,10 @@
 #include "typecheck.h"
 
+TypeCheckVisitor::TypeCheckVisitor(
+    std::unordered_map<std::string_view, std::string_view> *symbolTable)
+    : m_symbolTable(symbolTable) {}
+TypeCheckVisitor::~TypeCheckVisitor() {}
+
 void TypeCheckVisitor::visitReturnStatement(ReturnStatement *elem) {
   checkExpr(&elem->m_value);
 }
@@ -7,8 +12,16 @@ void TypeCheckVisitor::visitReturnStatement(ReturnStatement *elem) {
 void TypeCheckVisitor::checkExpr(Expression *expr) {
   if (expr->m_type == Expression::Type::Value) {
     ValueExpression *vexpr = static_cast<ValueExpression *>(expr->m_expression);
+    std::string_view type;
 
-    std::string_view type = valueExpressionTypeToString(vexpr->m_type);
+    if (vexpr->m_type == ValueExpressionType::Call) {
+      type = (*m_symbolTable)[m_currFn->m_name];
+    } else if (vexpr->m_type == ValueExpressionType::Ident) {
+      type = (*m_currFn->m_env)[vexpr->valueString()];
+    } else {
+      type = valueExpressionTypeToString(vexpr->m_type);
+    }
+
     if (type != m_currFn->m_returnType) {
       throw TypeCheckException(
           "Expected type " + std::string(m_currFn->m_returnType) +
@@ -37,7 +50,7 @@ TypeChecker::TypeChecker(
 TypeChecker::~TypeChecker() {}
 
 void TypeChecker::check() {
-  TypeCheckVisitor visitor;
+  TypeCheckVisitor visitor(&m_symbolTable);
   for (Function f : m_ast) {
     visitor.m_currFn = &f;
     visitor.visitFunction(&f);

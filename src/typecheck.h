@@ -5,11 +5,15 @@
 
 class TypeCheckVisitor : public ASTVisitor {
  public:
+  TypeCheckVisitor(std::unordered_map<std::string_view, std::string_view> *m_symbolTable);
+  ~TypeCheckVisitor();
+
   void visitReturnStatement(ReturnStatement *elem);
   void checkExpr(Expression *expr);
   void checkBinaryExpr(BinaryExpression *expr);
 
   Function *m_currFn;
+  std::unordered_map<std::string_view, std::string_view> *m_symbolTable;
 };
 
 class TypeChecker {

@@ -43,15 +43,17 @@ std::string_view valueExpressionTypeToString(ValueExpressionType type) {
   switch (type) {
     PROCESS_VAL(ValueExpressionType::i64);
     PROCESS_VAL(ValueExpressionType::f64);
+    PROCESS_VAL(ValueExpressionType::Call);
+    PROCESS_VAL(ValueExpressionType::Ident);
     PROCESS_VAL(ValueExpressionType::String);
 
     default:
-      s = "PrimitiveType::UNKNOWN";
+      s = "ValueExpressionType::UNKNOWN";
       break;
   }
 #undef PROCESS_VAL
 
-  return s + 15;  // hacky way to remove PrimitiveType::
+  return s + 21;  // hacky way to remove ValueExpressionType::
 }
 
 void ASTVisitor::visitFunction(Function *function) {
@@ -67,6 +69,9 @@ void ASTVisitor::visitBinaryExpression(BinaryExpression *expr) {
   walkBinaryExpression(this, expr);
 };
 void ASTVisitor::visitStatement(Statement *stmt) { walkStatement(this, stmt); };
+void ASTVisitor::visitLetStatement(LetStatement *stmt) {
+  walkLetStatement(this, stmt);
+};
 void ASTVisitor::visitIfStatement(IfStatement *stmt) {
   walkIfStatement(this, stmt);
 };
@@ -185,6 +190,18 @@ Statement Parser::parseStatement() {
 
     return Statement(Statement::Type::If,
                      new IfStatement(condition, bodyIfTrue, bodyIfFalse));
+  } else if (atIdentifier("let")) {
+    expectIdentifier("let");
+    std::string_view name = expect(TokenType::Identifier).m_src;
+    expect(TokenType::Colon);
+    std::string_view type = expect(TokenType::Identifier).m_src;
+    expect(TokenType::Eq);
+    Expression initialValue = parseExpression();
+    expect(TokenType::Semicolon);
+
+    m_currEnv[name] = type;
+    return Statement(Statement::Type::Let,
+                     new LetStatement(name, type, initialValue));
   } else {
     Token curr = peek();
     throw ParseException("Expected statement, got " + std::string(curr.m_src) +
@@ -193,6 +210,8 @@ Statement Parser::parseStatement() {
 }
 
 Function Parser::parseFunction() {
+  m_currEnv = std::unordered_map<std::string_view, std::string_view>();
+
   expectIdentifier("fn");
   std::string_view functionName = expectIdentifier();
 
@@ -215,7 +234,7 @@ Function Parser::parseFunction() {
   }
   expect(TokenType::RCurly);
 
-  return Function(functionName, args, returnType, statements);
+  return Function(functionName, &m_currEnv, args, returnType, statements);
 }
 
 Expression Parser::parseExpression() { return parseExpressionBP(0); }
@@ -237,18 +256,24 @@ Expression Parser::parseExpressionBP(int minBP) {
     Token t = expect(TokenType::String);
     lhs = Expression(Expression::Type::Value,
                      new ValueExpression(t.m_src, ValueExpressionType::String));
-  } else if (at(TokenType::Identifier) &&
-             (peek(1).m_type == TokenType::LParen)) {
-    std::string_view name = expect(TokenType::Identifier).m_src;
-    std::vector<Expression> args;
-    expect(TokenType::LParen);
-    while (!at(TokenType::RParen)) {
-      args.push_back(parseExpression());
+  } else if (at(TokenType::Identifier)) {
+    if (peek(1).m_type == TokenType::LParen) {
+      std::string_view name = expect(TokenType::Identifier).m_src;
+      std::vector<Expression> args;
+      expect(TokenType::LParen);
+      while (!at(TokenType::RParen)) {
+        args.push_back(parseExpression());
+      }
+      expect(TokenType::RParen);
+      lhs = Expression(Expression::Type::Value,
+                       new ValueExpression(FunctionCall(name, args),
+                                           ValueExpressionType::Call));
+    } else {
+      Token t = expect(TokenType::Identifier);
+      lhs =
+          Expression(Expression::Type::Value,
+                     new ValueExpression(t.m_src, ValueExpressionType::Ident));
     }
-    expect(TokenType::RParen);
-    lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(FunctionCall(name, args),
-                                         ValueExpressionType::Call));
   } else if (at(TokenType::LParen)) {
     expect(TokenType::LParen);
     lhs = parseExpression();
@@ -270,6 +295,8 @@ Expression Parser::parseExpressionBP(int minBP) {
     } else if (curr.m_type == TokenType::Slash) {
       op = BinaryExpression::Type::Div;
     } else if (curr.m_type == TokenType::EqEq) {
+      op = BinaryExpression::Type::Compare;
+    } else if (curr.m_type == TokenType::PipePipe) {
       op = BinaryExpression::Type::Compare;
     } else {
       break;
@@ -335,6 +362,20 @@ std::string ValueExpression::valueString() {
     return std::to_string(std::get<double>(m_value));
   } else if (m_type == ValueExpressionType::String) {
     return '"' + std::string(std::get<std::string_view>(m_value)) + '"';
+  } else if (m_type == ValueExpressionType::Ident) {
+    return std::string(std::get<std::string_view>(m_value));
+  } else if (m_type == ValueExpressionType::Call) {
+    FunctionCall fn = std::get<FunctionCall>(m_value);
+    std::string args;
+    for (int i = 0; i < fn.m_args.size(); i++) {
+      Expression arg = fn.m_args[i];
+      if (i == fn.m_args.size() - 1) {
+        args += debugPrintExpr(arg);
+      } else {
+        args += debugPrintExpr(arg) + ", ";
+      }
+    }
+    return std::string(fn.m_name) + "(" + args + ")";
   } else {
     assert(!"Unknown type in value expression");
   }
@@ -343,6 +384,11 @@ std::string ValueExpression::valueString() {
 Statement::Statement(Type type, BaseStatement *statement)
     : m_type(type), m_statement(statement) {}
 Statement::~Statement() {}
+
+LetStatement::LetStatement(std::string_view name, std::string_view type,
+                           Expression initialValue)
+    : m_name(name), m_type(type), m_initialValue(initialValue) {}
+LetStatement::~LetStatement() {}
 
 IfStatement::IfStatement(Expression condition,
                          std::vector<Statement> bodyIfTrue,
@@ -355,10 +401,12 @@ IfStatement::~IfStatement() {}
 ReturnStatement::ReturnStatement(Expression value) : m_value(value) {}
 ReturnStatement::~ReturnStatement() {}
 
-Function::Function(std::string_view name, std::vector<TypedValue> args,
-                   std::string_view returnType,
+Function::Function(std::string_view name,
+                   std::unordered_map<std::string_view, std::string_view> *env,
+                   std::vector<TypedValue> args, std::string_view returnType,
                    std::vector<Statement> statements)
     : m_name(name),
+      m_env(env),
       m_args(args),
       m_returnType(returnType),
       m_statements(statements) {}
@@ -390,6 +438,10 @@ void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr) {
   visitor->visitExpression(&expr->m_right);
 }
 
+void walkLetStatement(ASTVisitor *visitor, LetStatement *stmt) {
+  visitor->visitExpression(&stmt->m_initialValue);
+}
+
 void walkIfStatement(ASTVisitor *visitor, IfStatement *stmt) {
   visitor->visitExpression(&stmt->m_condition);
 
@@ -416,6 +468,9 @@ void walkStatement(ASTVisitor *visitor, Statement *statement) {
   } else if (type == Statement::Type::Return) {
     visitor->visitReturnStatement(
         static_cast<ReturnStatement *>(statement->m_statement));
+  } else if (type == Statement::Type::Let) {
+    visitor->visitLetStatement(
+        static_cast<LetStatement *>(statement->m_statement));
   } else {
     assert(!"Unknown statement type");
   }

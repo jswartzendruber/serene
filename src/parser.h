@@ -26,6 +26,7 @@ class BinaryExpression;
 
 class Statement;
 class IfStatement;
+class LetStatement;
 class BaseStatement;
 class ReturnStatement;
 
@@ -36,6 +37,7 @@ enum class ValueExpressionType {
   i64,
   f64,
   Call,
+  Ident,
   String,
 };
 
@@ -47,6 +49,7 @@ void walkExpression(ASTVisitor *visitor, Expression *expr);
 void walkValueExpression(ASTVisitor *visitor, ValueExpression *expr);
 void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr);
 void walkStatement(ASTVisitor *visitor, Statement *stmt);
+void walkLetStatement(ASTVisitor *visitor, LetStatement *stmt);
 void walkIfStatement(ASTVisitor *visitor, IfStatement *stmt);
 void walkReturnStatement(ASTVisitor *visitor, ReturnStatement *stmt);
 
@@ -57,6 +60,7 @@ class ASTVisitor {
   virtual void visitValueExpression(ValueExpression *expr);
   virtual void visitBinaryExpression(BinaryExpression *expr);
   virtual void visitStatement(Statement *stmt);
+  virtual void visitLetStatement(LetStatement *stmt);
   virtual void visitIfStatement(IfStatement *stmt);
   virtual void visitReturnStatement(ReturnStatement *stmt);
 };
@@ -68,6 +72,7 @@ class Parser {
 
   std::vector<Function> parse();
 
+  std::unordered_map<std::string_view, std::string_view> m_currEnv;
   std::unordered_map<std::string_view, std::string_view> m_symbolTable;
 
  private:
@@ -142,6 +147,7 @@ class BinaryExpression : public BaseExpression {
     Mul,
     Div,
     Compare,
+    LogicalOr,
   };
 
   BinaryExpression(Type type, Expression left, Expression right);
@@ -173,8 +179,9 @@ class BaseStatement {};
 class Statement {
  public:
   enum Type {
-    Return,
     If,
+    Let,
+    Return,
   };
 
   Statement(Type type, BaseStatement *statement);
@@ -182,6 +189,17 @@ class Statement {
 
   Type m_type;
   BaseStatement *m_statement;
+};
+
+class LetStatement : public BaseStatement {
+ public:
+  LetStatement(std::string_view name, std::string_view type,
+               Expression initialValue);
+  ~LetStatement();
+
+  std::string_view m_name;
+  std::string_view m_type;
+  Expression m_initialValue;
 };
 
 class IfStatement : public BaseStatement {
@@ -205,11 +223,14 @@ class ReturnStatement : public BaseStatement {
 
 class Function {
  public:
-  Function(std::string_view name, std::vector<TypedValue> args,
-           std::string_view returnType, std::vector<Statement> statements);
+  Function(std::string_view name,
+           std::unordered_map<std::string_view, std::string_view> *env,
+           std::vector<TypedValue> args, std::string_view returnType,
+           std::vector<Statement> statements);
   ~Function();
 
   std::string_view m_name;
+  std::unordered_map<std::string_view, std::string_view> *m_env;
   std::vector<TypedValue> m_args;
   std::string_view m_returnType;
   std::vector<Statement> m_statements;
