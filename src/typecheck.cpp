@@ -6,12 +6,12 @@ TypeCheckVisitor::TypeCheckVisitor(
 TypeCheckVisitor::~TypeCheckVisitor() {}
 
 void TypeCheckVisitor::visitReturnStatement(ReturnStatement *elem) {
-  checkExpr(&elem->m_value);
+  checkExpr(elem->m_value.get());
 }
 
 void TypeCheckVisitor::checkExpr(Expression *expr) {
   if (expr->m_type == Expression::Type::Value) {
-    ValueExpression *vexpr = static_cast<ValueExpression *>(expr->m_expression);
+    ValueExpression *vexpr = static_cast<ValueExpression *>(expr->m_expression.get());
     std::string_view type;
 
     if (vexpr->m_type == ValueExpressionType::Call) {
@@ -31,7 +31,7 @@ void TypeCheckVisitor::checkExpr(Expression *expr) {
     }
   } else if (expr->m_type == Expression::Type::BinOp) {
     BinaryExpression *vexpr =
-        static_cast<BinaryExpression *>(expr->m_expression);
+        static_cast<BinaryExpression *>(expr->m_expression.get());
     checkBinaryExpr(vexpr);
   } else {
     assert(!"Unreachable return expression check");
@@ -39,19 +39,19 @@ void TypeCheckVisitor::checkExpr(Expression *expr) {
 }
 
 void TypeCheckVisitor::checkBinaryExpr(BinaryExpression *expr) {
-  checkExpr(&expr->m_left);
-  checkExpr(&expr->m_right);
+  checkExpr(expr->m_left.get());
+  checkExpr(expr->m_right.get());
 }
 
 TypeChecker::TypeChecker(
     std::vector<Function> ast,
     std::unordered_map<std::string_view, std::string_view> symbolTable)
-    : m_ast(ast), m_symbolTable(symbolTable) {}
+    : m_ast(std::move(ast)), m_symbolTable(symbolTable) {}
 TypeChecker::~TypeChecker() {}
 
 void TypeChecker::check() {
   TypeCheckVisitor visitor(&m_symbolTable);
-  for (Function f : m_ast) {
+  for (Function &f : m_ast) {
     visitor.m_currFn = &f;
     visitor.visitFunction(&f);
   }

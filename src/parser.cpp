@@ -1,11 +1,11 @@
 #include "parser.h"
 
-std::string debugPrintExpr(Expression expr) {
+std::string debugPrintExpr(std::unique_ptr<Expression> expr) {
   std::string s;
 
-  if (expr.m_type == Expression::Type::BinOp) {
+  if (expr.get()->m_type == Expression::Type::BinOp) {
     BinaryExpression *opExpr =
-        static_cast<BinaryExpression *>(expr.m_expression);
+        static_cast<BinaryExpression *>(expr.get()->m_expression.get());
     BinaryExpression::Type op = opExpr->m_type;
     std::string opstr;
 
@@ -23,11 +23,12 @@ std::string debugPrintExpr(Expression expr) {
       opstr = " ? ";
     }
 
-    s += "( " + debugPrintExpr(opExpr->m_left) + opstr +
-         debugPrintExpr(opExpr->m_right) + " )";
+    s += "( " + debugPrintExpr(std::move(opExpr->m_left)) + opstr +
+         debugPrintExpr(std::move(opExpr->m_right)) + " )";
 
-  } else if (expr.m_type == Expression::Type::Value) {
-    ValueExpression *vExpr = static_cast<ValueExpression *>(expr.m_expression);
+  } else if (expr.get()->m_type == Expression::Type::Value) {
+    ValueExpression *vExpr =
+        static_cast<ValueExpression *>(expr.get()->m_expression.get());
     s += vExpr->valueString();
   }
 
@@ -159,13 +160,14 @@ TypedValue Parser::parseFunctionArgument() {
 Statement Parser::parseStatement() {
   if (atIdentifier("return")) {
     expectIdentifier("return");
-    Expression expr = parseExpression();
+    std::unique_ptr<Expression> expr = parseExpression();
     expect(TokenType::Semicolon);
 
-    return Statement(Statement::Type::Return, new ReturnStatement(expr));
+    return Statement(Statement::Type::Return,
+                     new ReturnStatement(std::move(expr)));
   } else if (atIdentifier("if")) {
     expectIdentifier("if");
-    Expression condition = parseExpression();
+    std::unique_ptr<Expression> condition = parseExpression();
 
     expect(TokenType::LCurly);
     std::vector<Statement> bodyIfTrue;
@@ -185,23 +187,25 @@ Statement Parser::parseStatement() {
       }
       expect(TokenType::RCurly);
 
-      bodyIfFalse = tmpBody;
+      bodyIfFalse = std::move(tmpBody);
     }
 
-    return Statement(Statement::Type::If,
-                     new IfStatement(condition, bodyIfTrue, bodyIfFalse));
+    return Statement(
+        Statement::Type::If,
+        new IfStatement(std::move(condition), std::move(bodyIfTrue),
+                        std::move(bodyIfFalse)));
   } else if (atIdentifier("let")) {
     expectIdentifier("let");
     std::string_view name = expect(TokenType::Identifier).m_src;
     expect(TokenType::Colon);
     std::string_view type = expect(TokenType::Identifier).m_src;
     expect(TokenType::Eq);
-    Expression initialValue = parseExpression();
+    std::unique_ptr<Expression> initialValue = parseExpression();
     expect(TokenType::Semicolon);
 
     (*m_currEnv)[name] = type;
     return Statement(Statement::Type::Let,
-                     new LetStatement(name, type, initialValue));
+                     new LetStatement(name, type, std::move(initialValue)));
   } else {
     Token curr = peek();
     throw ParseException("Expected statement, got " + std::string(curr.m_src) +
@@ -210,7 +214,10 @@ Statement Parser::parseStatement() {
 }
 
 Function Parser::parseFunction() {
-  m_currEnv = new std::unordered_map<std::string_view, std::string_view>();
+  std::unordered_map<std::string_view, std::string_view> myMap;
+  m_currEnv =
+      std::make_unique<std::unordered_map<std::string_view, std::string_view>>(
+          std::move(myMap));
 
   expectIdentifier("fn");
   std::string_view functionName = expectIdentifier();
@@ -234,45 +241,52 @@ Function Parser::parseFunction() {
   }
   expect(TokenType::RCurly);
 
-  return Function(functionName, m_currEnv, args, returnType, statements);
+  return Function(functionName, std::move(m_currEnv), args, returnType,
+                  std::move(statements));
 }
 
-Expression Parser::parseExpression() { return parseExpressionBP(0); }
+std::unique_ptr<Expression> Parser::parseExpression() {
+  return parseExpressionBP(0);
+}
 
-Expression Parser::parseExpressionBP(int minBP) {
-  Expression lhs;
+std::unique_ptr<Expression> Parser::parseExpressionBP(int minBP) {
+  std::unique_ptr<Expression> lhs;
 
   if (at(TokenType::Integer)) {
     Token t = expect(TokenType::Integer);
     long val = std::stol(std::string(t.m_src));
-    lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(val, ValueExpressionType::i64));
+    lhs = std::make_unique<Expression>(
+        Expression(Expression::Type::Value,
+                   new ValueExpression(val, ValueExpressionType::i64)));
   } else if (at(TokenType::Float)) {
     Token t = expect(TokenType::Float);
     double val = std::stod(std::string(t.m_src));
-    lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(val, ValueExpressionType::f64));
+    lhs = std::make_unique<Expression>(
+        Expression(Expression::Type::Value,
+                   new ValueExpression(val, ValueExpressionType::f64)));
   } else if (at(TokenType::String)) {
     Token t = expect(TokenType::String);
-    lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(t.m_src, ValueExpressionType::String));
+    lhs = std::make_unique<Expression>(
+        Expression(Expression::Type::Value,
+                   new ValueExpression(t.m_src, ValueExpressionType::String)));
   } else if (at(TokenType::Identifier)) {
     if (peek(1).m_type == TokenType::LParen) {
       std::string_view name = expect(TokenType::Identifier).m_src;
-      std::vector<Expression> args;
+      std::vector<std::unique_ptr<Expression>> args;
       expect(TokenType::LParen);
       while (!at(TokenType::RParen)) {
         args.push_back(parseExpression());
       }
       expect(TokenType::RParen);
-      lhs = Expression(Expression::Type::Value,
-                       new ValueExpression(FunctionCall(name, args),
-                                           ValueExpressionType::Call));
+      lhs = std::make_unique<Expression>(
+          Expression(Expression::Type::Value,
+                     new ValueExpression(FunctionCall(name, std::move(args)),
+                                         ValueExpressionType::Call)));
     } else {
       Token t = expect(TokenType::Identifier);
-      lhs =
+      lhs = std::make_unique<Expression>(
           Expression(Expression::Type::Value,
-                     new ValueExpression(t.m_src, ValueExpressionType::Ident));
+                     new ValueExpression(t.m_src, ValueExpressionType::Ident)));
     }
   } else if (at(TokenType::LParen)) {
     expect(TokenType::LParen);
@@ -310,9 +324,10 @@ Expression Parser::parseExpressionBP(int minBP) {
       }
 
       m_idx++;  // Skip over op
-      Expression rhs = parseExpressionBP(lbp + 1);
-      lhs = Expression(Expression::Type::BinOp,
-                       new BinaryExpression(op, lhs, rhs));
+      std::unique_ptr<Expression> rhs = parseExpressionBP(lbp + 1);
+      lhs = std::make_unique<Expression>(
+          Expression(Expression::Type::BinOp,
+                     new BinaryExpression(op, std::move(lhs), std::move(rhs))));
       continue;
     }
   }
@@ -322,15 +337,14 @@ Expression Parser::parseExpressionBP(int minBP) {
 
 TypedValue::TypedValue(std::string_view name, std::string_view type)
     : m_name(name), m_type(type) {}
-TypedValue::~TypedValue() {}
 
-Expression::Expression() {}
 Expression::~Expression() {}
 Expression::Expression(Type type, BaseExpression *expression)
     : m_type(type), m_expression(expression) {}
 
-BinaryExpression::BinaryExpression(Type type, Expression left, Expression right)
-    : m_type(type), m_left(left), m_right(right) {}
+BinaryExpression::BinaryExpression(Type type, std::unique_ptr<Expression> left,
+                                   std::unique_ptr<Expression> right)
+    : m_type(type), m_left(std::move(left)), m_right(std::move(right)) {}
 BinaryExpression::~BinaryExpression() {}
 
 int BinaryExpression::infixBP(Type op) {
@@ -353,7 +367,7 @@ int BinaryExpression::infixBP(Type op) {
 
 ValueExpression::ValueExpression(ValueExpressionValue value,
                                  ValueExpressionType type)
-    : m_value(value), m_type(type) {}
+    : m_value(std::move(value)), m_type(type) {}
 ValueExpression::~ValueExpression() {}
 std::string ValueExpression::valueString() {
   if (m_type == ValueExpressionType::i64) {
@@ -365,65 +379,62 @@ std::string ValueExpression::valueString() {
   } else if (m_type == ValueExpressionType::Ident) {
     return std::string(std::get<std::string_view>(m_value));
   } else if (m_type == ValueExpressionType::Call) {
-    FunctionCall fn = std::get<FunctionCall>(m_value);
+    FunctionCall fn = std::get<FunctionCall>(std::move(m_value));
     std::string args;
     for (int i = 0; i < fn.m_args.size(); i++) {
-      Expression arg = fn.m_args[i];
       if (i == fn.m_args.size() - 1) {
-        args += debugPrintExpr(arg);
+        args += debugPrintExpr(std::move(fn.m_args[i]));
       } else {
-        args += debugPrintExpr(arg) + ", ";
+        args += debugPrintExpr(std::move(fn.m_args[i])) + ", ";
       }
     }
     return std::string(fn.m_name) + "(" + args + ")";
   } else {
     assert(!"Unknown type in value expression");
   }
+  return "";
 }
 
 Statement::Statement(Type type, BaseStatement *statement)
     : m_type(type), m_statement(statement) {}
-Statement::~Statement() {}
 
 LetStatement::LetStatement(std::string_view name, std::string_view type,
-                           Expression initialValue)
-    : m_name(name), m_type(type), m_initialValue(initialValue) {}
-LetStatement::~LetStatement() {}
+                           std::unique_ptr<Expression> initialValue)
+    : m_name(name), m_type(type), m_initialValue(std::move(initialValue)) {}
 
-IfStatement::IfStatement(Expression condition,
+IfStatement::IfStatement(std::unique_ptr<Expression> condition,
                          std::vector<Statement> bodyIfTrue,
                          std::optional<std::vector<Statement>> bodyIfFalse)
-    : m_condition(condition),
-      m_bodyIfTrue(bodyIfTrue),
-      m_bodyIfFalse(bodyIfFalse) {}
-IfStatement::~IfStatement() {}
+    : m_condition(std::move(condition)),
+      m_bodyIfTrue(std::move(bodyIfTrue)),
+      m_bodyIfFalse(std::move(bodyIfFalse)) {}
 
-ReturnStatement::ReturnStatement(Expression value) : m_value(value) {}
-ReturnStatement::~ReturnStatement() {}
+ReturnStatement::ReturnStatement(std::unique_ptr<Expression> value)
+    : m_value(std::move(value)) {}
 
-Function::Function(std::string_view name,
-                   std::unordered_map<std::string_view, std::string_view> *env,
-                   std::vector<TypedValue> args, std::string_view returnType,
-                   std::vector<Statement> statements)
+Function::Function(
+    std::string_view name,
+    std::unique_ptr<std::unordered_map<std::string_view, std::string_view>> env,
+    std::vector<TypedValue> args, std::string_view returnType,
+    std::vector<Statement> statements)
     : m_name(name),
-      m_env(env),
+      m_env(std::move(env)),
       m_args(args),
       m_returnType(returnType),
-      m_statements(statements) {}
-Function::~Function() {}
+      m_statements(std::move(statements)) {}
 
-FunctionCall::FunctionCall(std::string_view name, std::vector<Expression> args)
-    : m_name(name), m_args(args) {}
-FunctionCall::~FunctionCall() {}
+FunctionCall::FunctionCall(std::string_view name,
+                           std::vector<std::unique_ptr<Expression>> args)
+    : m_name(name), m_args(std::move(args)) {}
 
 void walkExpression(ASTVisitor *visitor, Expression *expr) {
   Expression::Type type = expr->m_type;
   if (type == Expression::Type::BinOp) {
     visitor->visitBinaryExpression(
-        static_cast<BinaryExpression *>(expr->m_expression));
+        static_cast<BinaryExpression *>(expr->m_expression.get()));
   } else if (type == Expression::Type::Value) {
     visitor->visitValueExpression(
-        static_cast<ValueExpression *>(expr->m_expression));
+        static_cast<ValueExpression *>(expr->m_expression.get()));
   } else {
     assert(!"Unknown expression type");
   }
@@ -434,50 +445,50 @@ void walkValueExpression(ASTVisitor *visitor, ValueExpression *expr) {
 }
 
 void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr) {
-  visitor->visitExpression(&expr->m_left);
-  visitor->visitExpression(&expr->m_right);
+  visitor->visitExpression(expr->m_left.get());
+  visitor->visitExpression(expr->m_right.get());
 }
 
 void walkLetStatement(ASTVisitor *visitor, LetStatement *stmt) {
-  visitor->visitExpression(&stmt->m_initialValue);
+  visitor->visitExpression(stmt->m_initialValue.get());
 }
 
 void walkIfStatement(ASTVisitor *visitor, IfStatement *stmt) {
-  visitor->visitExpression(&stmt->m_condition);
+  visitor->visitExpression(stmt->m_condition.get());
 
-  for (Statement s : stmt->m_bodyIfTrue) {
+  for (Statement &s : stmt->m_bodyIfTrue) {
     visitor->visitStatement(&s);
   }
 
   if (stmt->m_bodyIfFalse.has_value()) {
-    for (Statement s : stmt->m_bodyIfFalse.value()) {
+    for (Statement &s : stmt->m_bodyIfFalse.value()) {
       visitor->visitStatement(&s);
     }
   }
 }
 
 void walkReturnStatement(ASTVisitor *visitor, ReturnStatement *stmt) {
-  visitor->visitExpression(&stmt->m_value);
+  visitor->visitExpression(stmt->m_value.get());
 }
 
 void walkStatement(ASTVisitor *visitor, Statement *statement) {
   Statement::Type type = statement->m_type;
   if (type == Statement::Type::If) {
     visitor->visitIfStatement(
-        static_cast<IfStatement *>(statement->m_statement));
+        static_cast<IfStatement *>(statement->m_statement.get()));
   } else if (type == Statement::Type::Return) {
     visitor->visitReturnStatement(
-        static_cast<ReturnStatement *>(statement->m_statement));
+        static_cast<ReturnStatement *>(statement->m_statement.get()));
   } else if (type == Statement::Type::Let) {
     visitor->visitLetStatement(
-        static_cast<LetStatement *>(statement->m_statement));
+        static_cast<LetStatement *>(statement->m_statement.get()));
   } else {
     assert(!"Unknown statement type");
   }
 }
 
 void walkFunction(ASTVisitor *visitor, Function *function) {
-  for (Statement s : function->m_statements) {
+  for (Statement &s : function->m_statements) {
     visitor->visitStatement(&s);
   }
 }

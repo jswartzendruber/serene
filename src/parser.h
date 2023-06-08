@@ -4,6 +4,7 @@
 #include <cassert>
 #include <exception>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -42,7 +43,7 @@ enum class ValueExpressionType {
 };
 
 std::string_view valueExpressionTypeToString(ValueExpressionType type);
-std::string debugPrintExpr(Expression expr);
+std::string debugPrintExpr(std::unique_ptr<Expression> expr);
 
 void walkFunction(ASTVisitor *visitor, Function *function);
 void walkExpression(ASTVisitor *visitor, Expression *expr);
@@ -72,7 +73,8 @@ class Parser {
 
   std::vector<Function> parse();
 
-  std::unordered_map<std::string_view, std::string_view> *m_currEnv;
+  std::unique_ptr<std::unordered_map<std::string_view, std::string_view>>
+      m_currEnv;
   std::unordered_map<std::string_view, std::string_view> m_symbolTable;
 
  private:
@@ -88,10 +90,8 @@ class Parser {
   std::string_view expectIdentifier(std::string expected);
   Function parseFunction();
   Statement parseStatement();
-
-  Expression parseExpression();
-  Expression parseExpressionBP(int bp);
-
+  std::unique_ptr<Expression> parseExpression();
+  std::unique_ptr<Expression> parseExpressionBP(int bp);
   TypedValue parseFunctionArgument();
 };
 
@@ -107,7 +107,6 @@ class ParseException : public std::exception {
 class TypedValue {
  public:
   TypedValue(std::string_view name, std::string_view type);
-  ~TypedValue();
 
   std::string_view m_name;
   std::string_view m_type;
@@ -115,14 +114,17 @@ class TypedValue {
 
 class FunctionCall {
  public:
-  FunctionCall(std::string_view name, std::vector<Expression> args);
-  ~FunctionCall();
+  FunctionCall(std::string_view name,
+               std::vector<std::unique_ptr<Expression>> args);
 
   std::string_view m_name;
-  std::vector<Expression> m_args;
+  std::vector<std::unique_ptr<Expression>> m_args;
 };
 
-class BaseExpression {};
+class BaseExpression {
+ public:
+  virtual ~BaseExpression() = default;
+};
 
 class Expression {
  public:
@@ -131,12 +133,12 @@ class Expression {
     BinOp,
   };
 
-  Expression();
+  Expression(Expression &&) = default;
   Expression(Type type, BaseExpression *expression);
   ~Expression();
 
   Type m_type;
-  BaseExpression *m_expression;
+  std::unique_ptr<BaseExpression> m_expression;
 };
 
 class BinaryExpression : public BaseExpression {
@@ -150,14 +152,15 @@ class BinaryExpression : public BaseExpression {
     LogicalOr,
   };
 
-  BinaryExpression(Type type, Expression left, Expression right);
+  BinaryExpression(Type type, std::unique_ptr<Expression> left,
+                   std::unique_ptr<Expression> right);
   ~BinaryExpression();
 
   static int infixBP(Type op);
 
   Type m_type;
-  Expression m_left;
-  Expression m_right;
+  std::unique_ptr<Expression> m_left;
+  std::unique_ptr<Expression> m_right;
 };
 
 using ValueExpressionValue =
@@ -167,14 +170,16 @@ class ValueExpression : public BaseExpression {
  public:
   ValueExpression(ValueExpressionValue value, ValueExpressionType type);
   ~ValueExpression();
-
   std::string valueString();
 
-  ValueExpressionType m_type;
   ValueExpressionValue m_value;
+  ValueExpressionType m_type;
 };
 
-class BaseStatement {};
+class BaseStatement {
+ public:
+  virtual ~BaseStatement() = default;
+};
 
 class Statement {
  public:
@@ -184,53 +189,52 @@ class Statement {
     Return,
   };
 
+  Statement(Statement &&) = default;
   Statement(Type type, BaseStatement *statement);
-  ~Statement();
 
   Type m_type;
-  BaseStatement *m_statement;
+  std::unique_ptr<BaseStatement> m_statement;
 };
 
 class LetStatement : public BaseStatement {
  public:
   LetStatement(std::string_view name, std::string_view type,
-               Expression initialValue);
-  ~LetStatement();
+               std::unique_ptr<Expression> initialValue);
 
   std::string_view m_name;
   std::string_view m_type;
-  Expression m_initialValue;
+  std::unique_ptr<Expression> m_initialValue;
 };
 
 class IfStatement : public BaseStatement {
  public:
-  IfStatement(Expression condition, std::vector<Statement> bodyIfTrue,
+  IfStatement(std::unique_ptr<Expression> condition,
+              std::vector<Statement> bodyIfTrue,
               std::optional<std::vector<Statement>> bodyIfFalse);
-  ~IfStatement();
 
-  Expression m_condition;
+  std::unique_ptr<Expression> m_condition;
   std::vector<Statement> m_bodyIfTrue;
   std::optional<std::vector<Statement>> m_bodyIfFalse;
 };
 
 class ReturnStatement : public BaseStatement {
  public:
-  ReturnStatement(Expression value);
-  ~ReturnStatement();
+  ReturnStatement(std::unique_ptr<Expression> value);
 
-  Expression m_value;
+  std::unique_ptr<Expression> m_value;
 };
 
 class Function {
  public:
-  Function(std::string_view name,
-           std::unordered_map<std::string_view, std::string_view> *env,
-           std::vector<TypedValue> args, std::string_view returnType,
-           std::vector<Statement> statements);
-  ~Function();
+  Function(
+      std::string_view name,
+      std::unique_ptr<std::unordered_map<std::string_view, std::string_view>>
+          env,
+      std::vector<TypedValue> args, std::string_view returnType,
+      std::vector<Statement> statements);
 
   std::string_view m_name;
-  std::unordered_map<std::string_view, std::string_view> *m_env;
+  std::unique_ptr<std::unordered_map<std::string_view, std::string_view>> m_env;
   std::vector<TypedValue> m_args;
   std::string_view m_returnType;
   std::vector<Statement> m_statements;
