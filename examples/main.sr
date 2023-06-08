@@ -3,3 +3,9 @@ fn main() -> i64 {
     let b: i64 = 2;
     return (a + b);
 }
+
+fn s() -> f64 {
+    let a: f64 = 1;
+    let b: f64 = 2;
+    return (a + b);
+}

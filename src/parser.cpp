@@ -199,7 +199,7 @@ Statement Parser::parseStatement() {
     Expression initialValue = parseExpression();
     expect(TokenType::Semicolon);
 
-    m_currEnv[name] = type;
+    (*m_currEnv)[name] = type;
     return Statement(Statement::Type::Let,
                      new LetStatement(name, type, initialValue));
   } else {
@@ -210,7 +210,7 @@ Statement Parser::parseStatement() {
 }
 
 Function Parser::parseFunction() {
-  m_currEnv = std::unordered_map<std::string_view, std::string_view>();
+  m_currEnv = new std::unordered_map<std::string_view, std::string_view>();
 
   expectIdentifier("fn");
   std::string_view functionName = expectIdentifier();
@@ -234,7 +234,7 @@ Function Parser::parseFunction() {
   }
   expect(TokenType::RCurly);
 
-  return Function(functionName, &m_currEnv, args, returnType, statements);
+  return Function(functionName, m_currEnv, args, returnType, statements);
 }
 
 Expression Parser::parseExpression() { return parseExpressionBP(0); }

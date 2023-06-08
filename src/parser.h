@@ -72,7 +72,7 @@ class Parser {
 
   std::vector<Function> parse();
 
-  std::unordered_map<std::string_view, std::string_view> m_currEnv;
+  std::unordered_map<std::string_view, std::string_view> *m_currEnv;
   std::unordered_map<std::string_view, std::string_view> m_symbolTable;
 
  private:
