@@ -16,6 +16,7 @@ class Parser;
 class ParseException;
 
 class Function;
+class FunctionCall;
 class TypedValue;
 
 class Expression;
@@ -31,15 +32,14 @@ class ReturnStatement;
 class ASTVisitor;
 class TypeCheckVisitor;
 
-enum class PrimitiveType {
+enum class ValueExpressionType {
   i64,
   f64,
+  Call,
   String,
 };
 
-using VExpr = std::variant<long, double, std::string_view>;
-
-std::string_view primitiveTypeToString(PrimitiveType type);
+std::string_view valueExpressionTypeToString(ValueExpressionType type);
 std::string debugPrintExpr(Expression expr);
 
 void walkFunction(ASTVisitor *visitor, Function *function);
@@ -75,6 +75,7 @@ class Parser {
   int m_idx;
 
   Token peek();
+  Token peek(int n);
   bool at(TokenType type);
   bool atIdentifier(std::string expected);
   Token expect(TokenType type);
@@ -105,6 +106,15 @@ class TypedValue {
 
   std::string_view m_name;
   std::string_view m_type;
+};
+
+class FunctionCall {
+ public:
+  FunctionCall(std::string_view name, std::vector<Expression> args);
+  ~FunctionCall();
+
+  std::string_view m_name;
+  std::vector<Expression> m_args;
 };
 
 class BaseExpression {};
@@ -144,15 +154,18 @@ class BinaryExpression : public BaseExpression {
   Expression m_right;
 };
 
+using ValueExpressionValue =
+    std::variant<long, double, std::string_view, FunctionCall>;
+
 class ValueExpression : public BaseExpression {
  public:
-  ValueExpression(VExpr value, PrimitiveType type);
+  ValueExpression(ValueExpressionValue value, ValueExpressionType type);
   ~ValueExpression();
 
   std::string valueString();
 
-  PrimitiveType m_type;
-  VExpr m_value;
+  ValueExpressionType m_type;
+  ValueExpressionValue m_value;
 };
 
 class BaseStatement {};

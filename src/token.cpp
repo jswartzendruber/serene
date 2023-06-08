@@ -15,6 +15,7 @@ std::string tokenTypeToString(TokenType type) {
   switch (type) {
     PROCESS_VAL(TokenType::Identifier);
     PROCESS_VAL(TokenType::Semicolon);
+    PROCESS_VAL(TokenType::PipePipe);
     PROCESS_VAL(TokenType::Integer);
     PROCESS_VAL(TokenType::String);
     PROCESS_VAL(TokenType::LParen);
@@ -32,6 +33,7 @@ std::string tokenTypeToString(TokenType type) {
     PROCESS_VAL(TokenType::EqEq);
     PROCESS_VAL(TokenType::Eof);
     PROCESS_VAL(TokenType::Eq);
+    PROCESS_VAL(TokenType::Or);
 
     default:
       s = "TokenType::UNKNOWN";

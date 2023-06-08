@@ -8,6 +8,7 @@
 enum class TokenType {
   Identifier,
   Semicolon,
+  PipePipe,
   Integer,
   String,
   LParen,
@@ -25,6 +26,7 @@ enum class TokenType {
   EqEq,
   Eof,
   Eq,
+  Or,
 };
 
 class Token {

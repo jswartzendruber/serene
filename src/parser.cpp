@@ -34,16 +34,16 @@ std::string debugPrintExpr(Expression expr) {
   return s;
 }
 
-std::string_view primitiveTypeToString(PrimitiveType type) {
+std::string_view valueExpressionTypeToString(ValueExpressionType type) {
   const char *s;
 #define PROCESS_VAL(p) \
   case (p):            \
     s = #p;            \
     break;
   switch (type) {
-    PROCESS_VAL(PrimitiveType::i64);
-    PROCESS_VAL(PrimitiveType::f64);
-    PROCESS_VAL(PrimitiveType::String);
+    PROCESS_VAL(ValueExpressionType::i64);
+    PROCESS_VAL(ValueExpressionType::f64);
+    PROCESS_VAL(ValueExpressionType::String);
 
     default:
       s = "PrimitiveType::UNKNOWN";
@@ -78,10 +78,18 @@ Parser::Parser(std::vector<Token> tokens) : m_tokens(tokens) { m_idx = 0; }
 Parser::~Parser() {}
 
 Token Parser::peek() {
-  if (m_idx + 1 < m_tokens.size()) {
+  if (m_idx < m_tokens.size()) {
     return m_tokens[m_idx];
   } else {
     return m_tokens[m_idx];
+  }
+}
+
+Token Parser::peek(int n) {
+  if (m_idx + n < m_tokens.size()) {
+    return m_tokens[m_idx + n];
+  } else {
+    return m_tokens[m_idx + n];
   }
 }
 
@@ -219,16 +227,28 @@ Expression Parser::parseExpressionBP(int minBP) {
     Token t = expect(TokenType::Integer);
     long val = std::stol(std::string(t.m_src));
     lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(val, PrimitiveType::i64));
+                     new ValueExpression(val, ValueExpressionType::i64));
   } else if (at(TokenType::Float)) {
     Token t = expect(TokenType::Float);
     double val = std::stod(std::string(t.m_src));
     lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(val, PrimitiveType::f64));
+                     new ValueExpression(val, ValueExpressionType::f64));
   } else if (at(TokenType::String)) {
     Token t = expect(TokenType::String);
     lhs = Expression(Expression::Type::Value,
-                     new ValueExpression(t.m_src, PrimitiveType::String));
+                     new ValueExpression(t.m_src, ValueExpressionType::String));
+  } else if (at(TokenType::Identifier) &&
+             (peek(1).m_type == TokenType::LParen)) {
+    std::string_view name = expect(TokenType::Identifier).m_src;
+    std::vector<Expression> args;
+    expect(TokenType::LParen);
+    while (!at(TokenType::RParen)) {
+      args.push_back(parseExpression());
+    }
+    expect(TokenType::RParen);
+    lhs = Expression(Expression::Type::Value,
+                     new ValueExpression(FunctionCall(name, args),
+                                         ValueExpressionType::Call));
   } else if (at(TokenType::LParen)) {
     expect(TokenType::LParen);
     lhs = parseExpression();
@@ -304,15 +324,16 @@ int BinaryExpression::infixBP(Type op) {
   }
 }
 
-ValueExpression::ValueExpression(VExpr value, PrimitiveType type)
+ValueExpression::ValueExpression(ValueExpressionValue value,
+                                 ValueExpressionType type)
     : m_value(value), m_type(type) {}
 ValueExpression::~ValueExpression() {}
 std::string ValueExpression::valueString() {
-  if (m_type == PrimitiveType::i64) {
+  if (m_type == ValueExpressionType::i64) {
     return std::to_string(std::get<long>(m_value));
-  } else if (m_type == PrimitiveType::f64) {
+  } else if (m_type == ValueExpressionType::f64) {
     return std::to_string(std::get<double>(m_value));
-  } else if (m_type == PrimitiveType::String) {
+  } else if (m_type == ValueExpressionType::String) {
     return '"' + std::string(std::get<std::string_view>(m_value)) + '"';
   } else {
     assert(!"Unknown type in value expression");
@@ -342,6 +363,10 @@ Function::Function(std::string_view name, std::vector<TypedValue> args,
       m_returnType(returnType),
       m_statements(statements) {}
 Function::~Function() {}
+
+FunctionCall::FunctionCall(std::string_view name, std::vector<Expression> args)
+    : m_name(name), m_args(args) {}
+FunctionCall::~FunctionCall() {}
 
 void walkExpression(ASTVisitor *visitor, Expression *expr) {
   Expression::Type type = expr->m_type;

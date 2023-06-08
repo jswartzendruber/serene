@@ -8,7 +8,7 @@ void TypeCheckVisitor::checkExpr(Expression *expr) {
   if (expr->m_type == Expression::Type::Value) {
     ValueExpression *vexpr = static_cast<ValueExpression *>(expr->m_expression);
 
-    std::string_view type = primitiveTypeToString(vexpr->m_type);
+    std::string_view type = valueExpressionTypeToString(vexpr->m_type);
     if (type != m_currFn->m_returnType) {
       throw TypeCheckException(
           "Expected type " + std::string(m_currFn->m_returnType) +

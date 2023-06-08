@@ -112,6 +112,14 @@ std::vector<Token> Lexer::lex() {
           }
           break;
 
+        case '|':
+          if (m_idx < m_src.size() && m_src[m_idx + 1] == '|') {
+            addToken(TokenType::PipePipe, 2);
+          } else {
+            addToken(TokenType::Or, 1);
+          }
+          break;
+
         case '"':
           m_idx++;  // Skip opening quote
           startIdx = m_idx;
