@@ -6,6 +6,8 @@
 class TypeCheckVisitor : public ASTVisitor {
  public:
   void visitReturnStatement(ReturnStatement *elem);
+  void checkExpr(Expression *expr);
+  void checkBinaryExpr(BinaryExpression *expr);
 
   Function *m_currFn;
 };

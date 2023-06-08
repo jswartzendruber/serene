@@ -1,10 +1,12 @@
 #include "typecheck.h"
 
 void TypeCheckVisitor::visitReturnStatement(ReturnStatement *elem) {
-  Expression::Type type = elem->m_value.m_type;
-  if (type == Expression::Type::Value) {
-    ValueExpression *vexpr =
-        static_cast<ValueExpression *>(elem->m_value.m_expression);
+  checkExpr(&elem->m_value);
+}
+
+void TypeCheckVisitor::checkExpr(Expression *expr) {
+  if (expr->m_type == Expression::Type::Value) {
+    ValueExpression *vexpr = static_cast<ValueExpression *>(expr->m_expression);
 
     std::string_view type = primitiveTypeToString(vexpr->m_type);
     if (type != m_currFn->m_returnType) {
@@ -14,7 +16,18 @@ void TypeCheckVisitor::visitReturnStatement(ReturnStatement *elem) {
           ", value: " + std::string(vexpr->valueString()) + ") in function " +
           std::string(m_currFn->m_name) + ".");
     }
+  } else if (expr->m_type == Expression::Type::BinOp) {
+    BinaryExpression *vexpr =
+        static_cast<BinaryExpression *>(expr->m_expression);
+    checkBinaryExpr(vexpr);
+  } else {
+    assert(!"Unreachable return expression check");
   }
+}
+
+void TypeCheckVisitor::checkBinaryExpr(BinaryExpression *expr) {
+  checkExpr(&expr->m_left);
+  checkExpr(&expr->m_right);
 }
 
 TypeChecker::TypeChecker(
