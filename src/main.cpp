@@ -37,15 +37,15 @@ int main(int argc, char **argv) {
   std::vector<Token> tokens = lexer.lex();
 
   Parser parser(tokens);
-  std::vector<Function> ast;
+  std::vector<std::shared_ptr<Function>> ast;
   try {
-    ast = parser.parse();
+    ast = std::move(parser.parse());
   } catch (ParseException &e) {
     std::cout << e.what() << "\n";
     std::exit(1);
   }
 
-  TypeChecker tc(std::move(ast), parser.m_symbolTable);
+  TypeChecker tc(ast, &parser.m_symbolTable);
   try {
     tc.check();
   } catch (TypeCheckException &e) {

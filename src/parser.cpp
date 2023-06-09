@@ -66,6 +66,9 @@ void ASTVisitor::visitExpression(Expression *expr) {
 void ASTVisitor::visitValueExpression(ValueExpression *expr) {
   walkValueExpression(this, expr);
 };
+void ASTVisitor::visitCallExpression(FunctionCall *call) {
+  walkCallExpression(this, call);
+}
 void ASTVisitor::visitBinaryExpression(BinaryExpression *expr) {
   walkBinaryExpression(this, expr);
 };
@@ -139,10 +142,12 @@ bool Parser::atIdentifier(std::string expected) {
   }
 }
 
-std::vector<Function> Parser::parse() {
-  std::vector<Function> fns;
+std::vector<std::shared_ptr<Function>> Parser::parse() {
+  std::vector<std::shared_ptr<Function>> fns;
   while (!at(TokenType::Eof)) {
-    fns.push_back(parseFunction());
+    std::shared_ptr<Function> fn = parseFunction();
+    m_symbolTable[fn.get()->m_name] = fn;
+    fns.push_back(std::move(fn));
   }
   return fns;
 }
@@ -214,7 +219,7 @@ Statement Parser::parseStatement() {
   }
 }
 
-Function Parser::parseFunction() {
+std::shared_ptr<Function> Parser::parseFunction() {
   std::unordered_map<std::string_view, std::string_view> myMap;
   m_currEnv =
       std::make_unique<std::unordered_map<std::string_view, std::string_view>>(
@@ -233,7 +238,6 @@ Function Parser::parseFunction() {
   // TODO: optional return type
   expect(TokenType::Arrow);
   std::string_view returnType = expectIdentifier();
-  m_symbolTable[functionName] = returnType;
 
   expect(TokenType::LCurly);
   std::vector<Statement> statements;
@@ -242,8 +246,9 @@ Function Parser::parseFunction() {
   }
   expect(TokenType::RCurly);
 
-  return Function(functionName, std::move(m_currEnv), args, returnType,
-                  std::move(statements));
+  return std::make_shared<Function>(Function(functionName, std::move(m_currEnv),
+                                             args, returnType,
+                                             std::move(statements)));
 }
 
 std::unique_ptr<Expression> Parser::parseExpression() {
@@ -277,6 +282,9 @@ std::unique_ptr<Expression> Parser::parseExpressionBP(int minBP) {
       expect(TokenType::LParen);
       while (!at(TokenType::RParen)) {
         args.push_back(parseExpression());
+        if (at(TokenType::Comma)) {
+          expect(TokenType::Comma);
+        }
       }
       expect(TokenType::RParen);
       lhs = std::make_unique<Expression>(
@@ -424,6 +432,8 @@ Function::Function(
       m_returnType(returnType),
       m_statements(std::move(statements)) {}
 
+Function::~Function() {}
+
 FunctionCall::FunctionCall(std::string_view name,
                            std::vector<std::unique_ptr<Expression>> args)
     : m_name(name), m_args(std::move(args)) {}
@@ -442,12 +452,31 @@ void walkExpression(ASTVisitor *visitor, Expression *expr) {
 }
 
 void walkValueExpression(ASTVisitor *visitor, ValueExpression *expr) {
-  // what do here
+  if (expr->m_type == ValueExpressionType::Call) {
+    visitor->visitCallExpression(&std::get<FunctionCall>(expr->m_value));
+  } else if (expr->m_type == ValueExpressionType::Ident) {
+    // visitor->visitIdentExpression(std::get<std::string_view>(expr->m_value));
+  } else if (expr->m_type == ValueExpressionType::String) {
+    // visitor->visitStringExpression(std::get<std::string_view>(expr->m_value));
+  } else if (expr->m_type == ValueExpressionType::i64) {
+    // visitor->visitIntegerExpression(std::get<long>(expr->m_value));
+  } else if (expr->m_type == ValueExpressionType::f64) {
+    // visitor->visitFloatExpression(std::get<double>(expr->m_value));
+  } else {
+    assert(!"Unreachable return expression check");
+  }
 }
 
 void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr) {
   visitor->visitExpression(expr->m_left.get());
   visitor->visitExpression(expr->m_right.get());
+}
+
+void walkCallExpression(ASTVisitor *visitor, FunctionCall *call) {
+  for (int i = 0; i < call->m_args.size(); i++) {
+    Expression *e = call->m_args[i].get();
+    visitor->visitExpression(e);
+  }
 }
 
 void walkLetStatement(ASTVisitor *visitor, LetStatement *stmt) {

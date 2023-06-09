@@ -48,6 +48,7 @@ std::string debugPrintExpr(std::unique_ptr<Expression> expr);
 void walkFunction(ASTVisitor *visitor, Function *function);
 void walkExpression(ASTVisitor *visitor, Expression *expr);
 void walkValueExpression(ASTVisitor *visitor, ValueExpression *expr);
+void walkCallExpression(ASTVisitor *visitor, FunctionCall *call);
 void walkBinaryExpression(ASTVisitor *visitor, BinaryExpression *expr);
 void walkStatement(ASTVisitor *visitor, Statement *stmt);
 void walkLetStatement(ASTVisitor *visitor, LetStatement *stmt);
@@ -59,6 +60,7 @@ class ASTVisitor {
   virtual void visitFunction(Function *function);
   virtual void visitExpression(Expression *expr);
   virtual void visitValueExpression(ValueExpression *expr);
+  virtual void visitCallExpression(FunctionCall *call);
   virtual void visitBinaryExpression(BinaryExpression *expr);
   virtual void visitStatement(Statement *stmt);
   virtual void visitLetStatement(LetStatement *stmt);
@@ -71,11 +73,12 @@ class Parser {
   Parser(std::vector<Token> tokens);
   ~Parser();
 
-  std::vector<Function> parse();
+  std::vector<std::shared_ptr<Function>> parse();
 
   std::unique_ptr<std::unordered_map<std::string_view, std::string_view>>
       m_currEnv;
-  std::unordered_map<std::string_view, std::string_view> m_symbolTable;
+  std::unordered_map<std::string_view, std::shared_ptr<Function>>
+      m_symbolTable;
 
  private:
   std::vector<Token> m_tokens;
@@ -88,7 +91,7 @@ class Parser {
   Token expect(TokenType type);
   std::string_view expectIdentifier();
   std::string_view expectIdentifier(std::string expected);
-  Function parseFunction();
+  std::shared_ptr<Function> parseFunction();
   Statement parseStatement();
   std::unique_ptr<Expression> parseExpression();
   std::unique_ptr<Expression> parseExpressionBP(int bp);
@@ -232,6 +235,8 @@ class Function {
           env,
       std::vector<TypedValue> args, std::string_view returnType,
       std::vector<Statement> statements);
+  Function(Function &&) = default;
+  ~Function();
 
   std::string_view m_name;
   std::unique_ptr<std::unordered_map<std::string_view, std::string_view>> m_env;
