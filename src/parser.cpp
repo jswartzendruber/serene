@@ -151,6 +151,7 @@ TypedValue Parser::parseFunctionArgument() {
   std::string_view argName = expectIdentifier();
   expect(TokenType::Colon);
   std::string_view argType = expectIdentifier();
+  (*m_currEnv)[argName] = argType;
   if (peek().m_type != TokenType::RParen) {
     expect(TokenType::Comma);
   }

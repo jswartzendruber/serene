@@ -5,12 +5,16 @@
 
 class TypeCheckVisitor : public ASTVisitor {
  public:
-  TypeCheckVisitor(std::unordered_map<std::string_view, std::string_view> *m_symbolTable);
+  TypeCheckVisitor(
+      std::unordered_map<std::string_view, std::string_view> *m_symbolTable);
   ~TypeCheckVisitor();
 
   void visitReturnStatement(ReturnStatement *elem);
-  void checkExpr(Expression *expr);
-  void checkBinaryExpr(BinaryExpression *expr);
+  void visitLetStatement(LetStatement *stmt);
+
+  void checkExpr(Expression *expr, std::string_view expectedType);
+  void checkBinaryExpr(BinaryExpression *expr, std::string_view expectedType);
+  void checkLetStatement(LetStatement *stmt);
 
   Function *m_currFn;
   std::unordered_map<std::string_view, std::string_view> *m_symbolTable;

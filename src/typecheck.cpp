@@ -6,41 +6,51 @@ TypeCheckVisitor::TypeCheckVisitor(
 TypeCheckVisitor::~TypeCheckVisitor() {}
 
 void TypeCheckVisitor::visitReturnStatement(ReturnStatement *elem) {
-  checkExpr(elem->m_value.get());
+  checkExpr(elem->m_value.get(), m_currFn->m_returnType);
 }
 
-void TypeCheckVisitor::checkExpr(Expression *expr) {
+void TypeCheckVisitor::visitLetStatement(LetStatement *stmt) {
+  checkLetStatement(stmt);
+}
+
+void TypeCheckVisitor::checkLetStatement(LetStatement *stmt) {
+  checkExpr(stmt->m_initialValue.get(), stmt->m_type);
+}
+
+void TypeCheckVisitor::checkExpr(Expression *expr,
+                                 std::string_view expectedType) {
   if (expr->m_type == Expression::Type::Value) {
-    ValueExpression *vexpr = static_cast<ValueExpression *>(expr->m_expression.get());
+    ValueExpression *vexpr =
+        static_cast<ValueExpression *>(expr->m_expression.get());
     std::string_view type;
 
     if (vexpr->m_type == ValueExpressionType::Call) {
-      type = (*m_symbolTable)[m_currFn->m_name];
+      type = (*m_symbolTable)[std::get<FunctionCall>(vexpr->m_value).m_name];
     } else if (vexpr->m_type == ValueExpressionType::Ident) {
-      type = (*m_currFn->m_env)[vexpr->valueString()];
+      type = (*m_currFn->m_env)[std::get<std::string_view>(vexpr->m_value)];
     } else {
       type = valueExpressionTypeToString(vexpr->m_type);
     }
 
-    if (type != m_currFn->m_returnType) {
-      throw TypeCheckException(
-          "Expected type " + std::string(m_currFn->m_returnType) +
-          ", found (type: " + std::string(type) +
-          ", value: " + std::string(vexpr->valueString()) + ") in function " +
-          std::string(m_currFn->m_name) + ".");
+    if (type != expectedType) {
+      throw TypeCheckException("Expected type " + std::string(expectedType) +
+                               ", found (type: " + std::string(type) +
+                               ", value: " + std::string(vexpr->valueString()) +
+                               ").");
     }
   } else if (expr->m_type == Expression::Type::BinOp) {
     BinaryExpression *vexpr =
         static_cast<BinaryExpression *>(expr->m_expression.get());
-    checkBinaryExpr(vexpr);
+    checkBinaryExpr(vexpr, expectedType);
   } else {
     assert(!"Unreachable return expression check");
   }
 }
 
-void TypeCheckVisitor::checkBinaryExpr(BinaryExpression *expr) {
-  checkExpr(expr->m_left.get());
-  checkExpr(expr->m_right.get());
+void TypeCheckVisitor::checkBinaryExpr(BinaryExpression *expr,
+                                       std::string_view expectedType) {
+  checkExpr(expr->m_left.get(), expectedType);
+  checkExpr(expr->m_right.get(), expectedType);
 }
 
 TypeChecker::TypeChecker(
