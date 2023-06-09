@@ -32,8 +32,6 @@ enum class TokenType {
 class Token {
  public:
   Token(TokenType type, std::string_view src, int line);
-  ~Token();
-
   void debug_display();
 
   std::string_view m_src;

@@ -8,7 +8,6 @@ class TypeCheckVisitor : public ASTVisitor {
   TypeCheckVisitor(
       std::unordered_map<std::string_view, std::shared_ptr<Function>>
           *m_symbolTable);
-  ~TypeCheckVisitor();
 
   void visitReturnStatement(ReturnStatement *elem) override;
   void visitLetStatement(LetStatement *stmt) override;
@@ -28,7 +27,6 @@ class TypeChecker {
   TypeChecker(std::vector<std::shared_ptr<Function>> ast,
               std::unordered_map<std::string_view, std::shared_ptr<Function>>
                   *symbolTable);
-  ~TypeChecker();
 
   void check();
 

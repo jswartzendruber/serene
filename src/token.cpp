@@ -4,7 +4,6 @@ Token::Token(TokenType type, std::string_view src, int line) : m_src(src) {
   m_type = type;
   m_line = line;
 }
-Token::~Token() {}
 
 std::string tokenTypeToString(TokenType type) {
   const char *s;
@@ -45,17 +44,11 @@ std::string tokenTypeToString(TokenType type) {
 }
 
 std::string pad_right(std::string const &str, size_t s) {
-  if (str.size() < s)
-    return str + std::string(s - str.size(), ' ');
-  else
-    return str;
+  return (str.size() < s) ? str + std::string(s - str.size(), ' ') : str;
 }
 
 std::string pad_left(std::string const &str, size_t s) {
-  if (str.size() < s)
-    return std::string(s - str.size(), ' ') + str;
-  else
-    return str;
+  return (str.size() < s) ? std::string(s - str.size(), ' ') + str : str;
 }
 
 void Token::debug_display() {

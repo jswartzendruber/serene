@@ -71,14 +71,12 @@ class ASTVisitor {
 class Parser {
  public:
   Parser(std::vector<Token> tokens);
-  ~Parser();
 
   std::vector<std::shared_ptr<Function>> parse();
 
   std::unique_ptr<std::unordered_map<std::string_view, std::string_view>>
       m_currEnv;
-  std::unordered_map<std::string_view, std::shared_ptr<Function>>
-      m_symbolTable;
+  std::unordered_map<std::string_view, std::shared_ptr<Function>> m_symbolTable;
 
  private:
   std::vector<Token> m_tokens;
@@ -138,7 +136,6 @@ class Expression {
 
   Expression(Expression &&) = default;
   Expression(Type type, BaseExpression *expression);
-  ~Expression();
 
   Type m_type;
   std::unique_ptr<BaseExpression> m_expression;
@@ -157,7 +154,6 @@ class BinaryExpression : public BaseExpression {
 
   BinaryExpression(Type type, std::unique_ptr<Expression> left,
                    std::unique_ptr<Expression> right);
-  ~BinaryExpression();
 
   static int infixBP(Type op);
 
@@ -172,7 +168,6 @@ using ValueExpressionValue =
 class ValueExpression : public BaseExpression {
  public:
   ValueExpression(ValueExpressionValue value, ValueExpressionType type);
-  ~ValueExpression();
   std::string valueString();
 
   ValueExpressionValue m_value;
@@ -236,7 +231,6 @@ class Function {
       std::vector<TypedValue> args, std::string_view returnType,
       std::vector<Statement> statements);
   Function(Function &&) = default;
-  ~Function();
 
   std::string_view m_name;
   std::unique_ptr<std::unordered_map<std::string_view, std::string_view>> m_env;

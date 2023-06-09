@@ -10,8 +10,6 @@
 class Lexer {
  public:
   Lexer(std::string_view fileSrc);
-  ~Lexer();
-
   std::vector<Token> lex();
 
   std::string_view m_src;

@@ -4,7 +4,6 @@ TypeCheckVisitor::TypeCheckVisitor(
     std::unordered_map<std::string_view, std::shared_ptr<Function>>
         *symbolTable)
     : m_symbolTable(symbolTable) {}
-TypeCheckVisitor::~TypeCheckVisitor() {}
 
 void TypeCheckVisitor::visitReturnStatement(ReturnStatement *elem) {
   this->visitExpression(elem->m_value.get());
@@ -31,7 +30,7 @@ void TypeCheckVisitor::visitCallExpression(FunctionCall *call) {
     }
 
     for (int i = 0; i < call->m_args.size(); i++) {
-      Expression* callExpr = call->m_args[i].get();
+      Expression *callExpr = call->m_args[i].get();
       std::string_view expectedType = callingFunction->m_args[i].m_type;
       checkExpr(callExpr, expectedType);
     }
@@ -81,7 +80,6 @@ TypeChecker::TypeChecker(
     std::unordered_map<std::string_view, std::shared_ptr<Function>>
         *symbolTable)
     : m_ast(std::move(ast)), m_symbolTable(std::move(symbolTable)) {}
-TypeChecker::~TypeChecker() {}
 
 void TypeChecker::check() {
   TypeCheckVisitor visitor(m_symbolTable);

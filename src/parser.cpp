@@ -84,23 +84,9 @@ void ASTVisitor::visitReturnStatement(ReturnStatement *stmt) {
 };
 
 Parser::Parser(std::vector<Token> tokens) : m_tokens(tokens) { m_idx = 0; }
-Parser::~Parser() {}
 
-Token Parser::peek() {
-  if (m_idx < m_tokens.size()) {
-    return m_tokens[m_idx];
-  } else {
-    return m_tokens[m_idx];
-  }
-}
-
-Token Parser::peek(int n) {
-  if (m_idx + n < m_tokens.size()) {
-    return m_tokens[m_idx + n];
-  } else {
-    return m_tokens[m_idx + n];
-  }
-}
+Token Parser::peek() { return m_tokens[m_idx]; }
+Token Parser::peek(int n) { return m_tokens[m_idx + n]; }
 
 Token Parser::expect(TokenType type) {
   Token t = m_tokens[m_idx];
@@ -121,7 +107,7 @@ std::string_view Parser::expectIdentifier() {
 std::string_view Parser::expectIdentifier(std::string expected) {
   Token token = expect(TokenType::Identifier);
 
-  if (token.m_src.compare(expected) == 0) {
+  if (token.m_src == expected) {
     return token.m_src;
   } else {
     throw ParseException("Expected identifier '" + expected + "', got '" +
@@ -135,11 +121,7 @@ bool Parser::at(TokenType type) {
 }
 
 bool Parser::atIdentifier(std::string expected) {
-  if (at(TokenType::Identifier)) {
-    return peek().m_src.compare(expected) == 0;
-  } else {
-    return false;
-  }
+  return (at(TokenType::Identifier)) ? peek().m_src == expected : false;
 }
 
 std::vector<std::shared_ptr<Function>> Parser::parse() {
@@ -235,9 +217,13 @@ std::shared_ptr<Function> Parser::parseFunction() {
   }
   expect(TokenType::RParen);
 
-  // TODO: optional return type
-  expect(TokenType::Arrow);
-  std::string_view returnType = expectIdentifier();
+  std::string_view returnType;
+  if (at(TokenType::Arrow)) {
+    expect(TokenType::Arrow);
+    returnType = expectIdentifier();
+  } else {
+    returnType = "Void";
+  }
 
   expect(TokenType::LCurly);
   std::vector<Statement> statements;
@@ -347,14 +333,12 @@ std::unique_ptr<Expression> Parser::parseExpressionBP(int minBP) {
 TypedValue::TypedValue(std::string_view name, std::string_view type)
     : m_name(name), m_type(type) {}
 
-Expression::~Expression() {}
 Expression::Expression(Type type, BaseExpression *expression)
     : m_type(type), m_expression(expression) {}
 
 BinaryExpression::BinaryExpression(Type type, std::unique_ptr<Expression> left,
                                    std::unique_ptr<Expression> right)
     : m_type(type), m_left(std::move(left)), m_right(std::move(right)) {}
-BinaryExpression::~BinaryExpression() {}
 
 int BinaryExpression::infixBP(Type op) {
   switch (op) {
@@ -377,7 +361,6 @@ int BinaryExpression::infixBP(Type op) {
 ValueExpression::ValueExpression(ValueExpressionValue value,
                                  ValueExpressionType type)
     : m_value(std::move(value)), m_type(type) {}
-ValueExpression::~ValueExpression() {}
 std::string ValueExpression::valueString() {
   if (m_type == ValueExpressionType::i64) {
     return std::to_string(std::get<long>(m_value));
@@ -431,8 +414,6 @@ Function::Function(
       m_args(args),
       m_returnType(returnType),
       m_statements(std::move(statements)) {}
-
-Function::~Function() {}
 
 FunctionCall::FunctionCall(std::string_view name,
                            std::vector<std::unique_ptr<Expression>> args)
